@@ -152,3 +152,57 @@ export async function markInvoicePaid(input: {
 
   revalidatePath("/admin");
 }
+
+// Marks a whole batch of approved invoices paid in one go (e.g. the weekly
+// Thursday payment run) — each gets a Payment for its full amount, sharing
+// one method/date. For a payment that isn't the full invoice amount, use
+// markInvoicePaid on that invoice individually instead.
+export async function markInvoicesPaidBatch(input: {
+  invoiceIds: string[];
+  method: string;
+  paidOn?: string;
+}) {
+  const user = await requireUser();
+
+  if (!user.isAdmin) {
+    throw new Error("Only admins can record payments");
+  }
+  if (input.invoiceIds.length === 0) {
+    throw new Error("Select at least one invoice");
+  }
+
+  const invoices = await db.invoice.findMany({
+    where: { id: { in: input.invoiceIds } },
+  });
+  if (invoices.length !== input.invoiceIds.length) {
+    throw new Error("One or more selected invoices could not be found");
+  }
+  const notApproved = invoices.filter((invoice) => invoice.status !== "approved");
+  if (notApproved.length > 0) {
+    throw new Error(
+      `${notApproved.length} selected invoice(s) are no longer approved — refresh and try again`
+    );
+  }
+
+  const paidAt = input.paidOn ? new Date(`${input.paidOn}T00:00:00`) : new Date();
+
+  await db.$transaction(
+    invoices.flatMap((invoice) => [
+      db.payment.create({
+        data: {
+          invoiceId: invoice.id,
+          amountCents: invoice.amountCents,
+          method: input.method,
+          paidAt,
+          recordedById: user.id,
+        },
+      }),
+      db.invoice.update({
+        where: { id: invoice.id },
+        data: { status: "paid" },
+      }),
+    ])
+  );
+
+  revalidatePath("/admin");
+}

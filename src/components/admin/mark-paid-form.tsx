@@ -2,13 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { markInvoicePaid } from "@/lib/actions/invoice-actions";
-import { dollarsToCents } from "@/lib/domain";
-
-const PAYMENT_METHODS = ["Check", "ACH", "Card", "Wire", "Other"];
-
-function todayIso() {
-  return new Date().toISOString().slice(0, 10);
-}
+import { dollarsToCents, PAYMENT_METHODS, todayIso } from "@/lib/domain";
 
 export function MarkPaidForm({
   invoiceId,
@@ -18,7 +12,7 @@ export function MarkPaidForm({
   amountCents: number;
 }) {
   const [amount, setAmount] = useState((amountCents / 100).toFixed(2));
-  const [method, setMethod] = useState(PAYMENT_METHODS[0]);
+  const [method, setMethod] = useState<string>(PAYMENT_METHODS[0]);
   const [paidOn, setPaidOn] = useState(todayIso());
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();

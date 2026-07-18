@@ -100,7 +100,12 @@ place** so this can be reused for a future client without touching app code:
 - `src/lib/domain.ts` — generic constants/types (invoice statuses, money
   formatting). No client values.
 - `src/app/superintendent/` — superintendent approval queue.
-- `src/app/admin/` — admin payment queue + cross-job override view.
+- `src/app/admin/` — admin payment queue + cross-job override view. The
+  "Ready to Pay" section (`src/components/admin/payment-batch-section.tsx`)
+  supports selecting several approved invoices and marking them all paid
+  together with one method/date — the weekly Thursday-batch case — while
+  still allowing a one-off custom amount per invoice via the existing
+  per-invoice form.
 - `src/app/admin/invoices/new/` — invoice intake form (admin-only; see below).
 - `src/app/admin/jobs/` — job list, create, and edit (admin-only). Editing a
   job's superintendent immediately re-routes any of its pending/flagged

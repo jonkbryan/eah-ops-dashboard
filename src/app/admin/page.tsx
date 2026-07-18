@@ -4,7 +4,7 @@ import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { formatCents } from "@/lib/domain";
 import { InvoiceDecisionCard } from "@/components/invoice-decision-card";
-import { MarkPaidForm } from "@/components/admin/mark-paid-form";
+import { PaymentBatchSection } from "@/components/admin/payment-batch-section";
 import { AdminTabs } from "@/components/admin/admin-tabs";
 
 export default async function AdminPage() {
@@ -53,65 +53,18 @@ export default async function AdminPage() {
         <h2 className="text-sm font-medium text-gray-500 uppercase tracking-wide">
           Ready to Pay ({readyToPay.length})
         </h2>
-        {readyToPay.length === 0 ? (
-          <p className="text-sm text-gray-500 bg-white rounded-2xl border border-gray-200 p-6 text-center">
-            No approved invoices waiting on payment.
-          </p>
-        ) : (
-          <div className="space-y-3">
-            {readyToPay.map((invoice) => (
-              <div
-                key={invoice.id}
-                className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4 space-y-1"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="font-semibold text-gray-900 truncate">
-                      {invoice.vendorName}
-                    </p>
-                    <p className="text-sm text-gray-500 truncate">
-                      {invoice.costCode.label} · {invoice.job.name}
-                    </p>
-                  </div>
-                  <p className="text-lg font-semibold text-gray-900 shrink-0">
-                    {formatCents(invoice.amountCents)}
-                  </p>
-                </div>
-                {invoice.decisionNote && (
-                  <p className="text-sm text-gray-600 bg-gray-50 rounded-lg px-3 py-2">
-                    {invoice.decisionNote}
-                  </p>
-                )}
-                <div className="flex items-center justify-between gap-3">
-                  {invoice.attachmentUrl ? (
-                    <a
-                      href={invoice.attachmentUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-sm text-blue-600 hover:text-blue-800 underline"
-                    >
-                      View invoice
-                    </a>
-                  ) : (
-                    <span />
-                  )}
-                  {invoice.approvalSignature && (
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-gray-400">Approved by signature</span>
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={invoice.approvalSignature}
-                        alt="Approval signature"
-                        className="h-8 border border-gray-200 rounded bg-white"
-                      />
-                    </div>
-                  )}
-                </div>
-                <MarkPaidForm invoiceId={invoice.id} amountCents={invoice.amountCents} />
-              </div>
-            ))}
-          </div>
-        )}
+        <PaymentBatchSection
+          invoices={readyToPay.map((invoice) => ({
+            id: invoice.id,
+            vendorName: invoice.vendorName,
+            amountCents: invoice.amountCents,
+            costCodeLabel: invoice.costCode.label,
+            jobName: invoice.job.name,
+            decisionNote: invoice.decisionNote,
+            attachmentUrl: invoice.attachmentUrl,
+            approvalSignature: invoice.approvalSignature,
+          }))}
+        />
       </section>
 
       <section className="space-y-3">
