@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { formatCents } from "@/lib/domain";
+import { AdminTabs } from "@/components/admin/admin-tabs";
 
 function statusLabel(status: string) {
   return status
@@ -23,17 +24,20 @@ export default async function JobsPage() {
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-6 space-y-6">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-semibold text-gray-900">Jobs</h1>
-          <p className="text-sm text-gray-500">{jobs.length} job(s)</p>
+      <div className="space-y-4">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <h1 className="text-xl font-semibold text-gray-900">Jobs</h1>
+            <p className="text-sm text-gray-500">{jobs.length} job(s)</p>
+          </div>
+          <Link
+            href="/admin/jobs/new"
+            className="shrink-0 rounded-lg bg-blue-600 text-white font-medium px-4 py-2.5 text-sm active:bg-blue-700"
+          >
+            + New Job
+          </Link>
         </div>
-        <Link
-          href="/admin/jobs/new"
-          className="shrink-0 rounded-lg bg-blue-600 text-white font-medium px-4 py-2.5 text-sm active:bg-blue-700"
-        >
-          + New Job
-        </Link>
+        <AdminTabs active="jobs" />
       </div>
 
       {jobs.length === 0 ? (

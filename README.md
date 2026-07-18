@@ -103,11 +103,16 @@ place** so this can be reused for a future client without touching app code:
 - `src/app/admin/jobs/` — job list, create, and edit (admin-only). Editing a
   job's superintendent immediately re-routes any of its pending/flagged
   invoices to the newly assigned superintendent's queue.
+- `src/app/admin/users/` — user list, create, and edit roles (admin-only).
+  Editing also exposes an admin-triggered password reset, for someone
+  locked out of their own account.
 - `src/lib/actions/invoice-actions.ts` — server-side logic for
   create/approve/reject/flag and mark-paid, with role checks enforced on
   the server (not just hidden in the UI).
 - `src/lib/actions/job-actions.ts` — server-side logic for creating and
   updating jobs (admin-only).
+- `src/lib/actions/user-actions.ts` — server-side logic for creating users,
+  updating roles, admin password reset, and self-service password change.
 
 Money is stored as integer cents (`amountCents`, `budgetCents`) to avoid
 floating-point rounding bugs on financial data.
@@ -125,9 +130,15 @@ dropdown to their assigned job).
 
 - **No budget-vs-actual reporting or full dashboard.**
 - **No QuickBooks integration.**
-- **No "forgot password" / admin-triggered reset.** Users can change their
-  own password from `/account` if they know their current one (see
-  Logging In above), but there's no recovery path for someone locked out.
+- **No self-service "forgot password" link on the login page itself** — a
+  locked-out user has to ask an admin to reset their password from
+  `/admin/users/[id]/edit` (see Logging In above). There's no automated
+  email-based recovery flow, which would need email infrastructure.
+- **No deleting a user, job, or cost code.** Editing covers the realistic
+  cases (reassign a job, change someone's roles); deleting is riskier since
+  Invoice/Payment records reference these by ID, and wasn't necessary for
+  v1. If someone truly leaves, editing their roles off is the interim
+  approach.
 - **No reopening a paid invoice.** Admins can override pending/flagged/
   rejected/approved invoices at any stage, but once an invoice is marked
   paid there's no UI to reverse it (avoids leaving an orphaned Payment

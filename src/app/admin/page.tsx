@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { formatCents } from "@/lib/domain";
 import { InvoiceDecisionCard } from "@/components/invoice-decision-card";
 import { MarkPaidForm } from "@/components/admin/mark-paid-form";
+import { AdminTabs } from "@/components/admin/admin-tabs";
 
 export default async function AdminPage() {
   const session = await auth();
@@ -32,25 +33,20 @@ export default async function AdminPage() {
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-6 space-y-8">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-semibold text-gray-900">Admin</h1>
-          <p className="text-sm text-gray-500">All jobs, {session.user.name}</p>
-        </div>
-        <div className="flex items-center gap-2 shrink-0">
-          <Link
-            href="/admin/jobs"
-            className="rounded-lg bg-white border border-gray-300 text-gray-700 font-medium px-4 py-2.5 text-sm hover:bg-gray-50"
-          >
-            Jobs
-          </Link>
+      <div className="space-y-4">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <h1 className="text-xl font-semibold text-gray-900">Admin</h1>
+            <p className="text-sm text-gray-500">All jobs, {session.user.name}</p>
+          </div>
           <Link
             href="/admin/invoices/new"
-            className="rounded-lg bg-blue-600 text-white font-medium px-4 py-2.5 text-sm active:bg-blue-700"
+            className="shrink-0 rounded-lg bg-blue-600 text-white font-medium px-4 py-2.5 text-sm active:bg-blue-700"
           >
             + Log Invoice
           </Link>
         </div>
+        <AdminTabs active="overview" />
       </div>
 
       <section className="space-y-3">
