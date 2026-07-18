@@ -128,6 +128,26 @@ to be able to log invoices from the field too, that's a small follow-up
 (loosen the `isAdmin` check in `createInvoice`, and possibly scope the job
 dropdown to their assigned job).
 
+**Invoice attachments are a link, not a file upload.** EAH already has an
+active Make.com pipeline that ingests invoice emails, extracts the PDF, and
+uploads it to a Google Shared Drive folder ("Elijah Anthony Homes →
+Accounts Payable"). Rather than build a second, competing place to store
+files, invoices here just carry an optional `attachmentUrl` — an admin
+pastes the Drive link when logging the invoice, and it shows as a "View
+invoice" link everywhere the invoice appears. If the dashboard later
+replaces or integrates with that Make.com pipeline, this field is exactly
+where the automation would write the link directly instead of a human
+pasting it.
+
+**Approving an invoice requires a signature.** Clicking Approve on
+`InvoiceDecisionCard` opens a canvas-based signature pad
+(`src/components/signature-pad.tsx`, plain HTML5 canvas, no external
+library) instead of submitting immediately — the drawn signature is
+captured as a PNG data URL and stored on `Invoice.approvalSignature`. This
+only applies to Approve; Reject and Flag still submit immediately with no
+signature required, since they don't authorize spending. Admins can see
+the captured signature on the "Ready to Pay" cards in `/admin`.
+
 ## Known limitations (intentionally out of scope for v1)
 
 - **No budget-vs-actual reporting or full dashboard.**

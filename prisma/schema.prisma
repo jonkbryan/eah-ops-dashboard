@@ -46,26 +46,33 @@ model Job {
 }
 
 model CostCode {
-  id       String @id @default(cuid())
-  code     String @unique
+  id       String    @id @default(cuid())
+  code     String    @unique
   label    String
   invoices Invoice[]
 }
 
 model Invoice {
-  id           String    @id @default(cuid())
-  vendorName   String
-  jobId        String
-  costCodeId   String
-  amountCents  Int
+  id                String    @id @default(cuid())
+  vendorName        String
+  jobId             String
+  costCodeId        String
+  amountCents       Int
   // pending -> approved | rejected | flagged -> paid
-  status       String    @default("pending")
-  note         String?
-  decisionNote String?
-  decidedById  String?
-  decidedAt    DateTime?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  status            String    @default("pending")
+  note              String?
+  // Link to the invoice document (e.g. a Google Drive file). Just a URL for
+  // now — not a file upload — see prisma/seed-data/eah.ts and the README for
+  // why (EAH already has a Drive-based pipeline that owns the actual files).
+  attachmentUrl     String?
+  decisionNote      String?
+  // Captured only when a superintendent approves (not on reject/flag) — a
+  // base64 PNG data URL from the on-screen signature pad.
+  approvalSignature String?
+  decidedById       String?
+  decidedAt         DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 
   job       Job       @relation(fields: [jobId], references: [id])
   costCode  CostCode  @relation(fields: [costCodeId], references: [id])

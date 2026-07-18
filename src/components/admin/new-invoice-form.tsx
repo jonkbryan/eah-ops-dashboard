@@ -17,6 +17,7 @@ export function NewInvoiceForm({ jobs, costCodes }: Props) {
   const [vendorName, setVendorName] = useState("");
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
+  const [attachmentUrl, setAttachmentUrl] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -52,6 +53,7 @@ export function NewInvoiceForm({ jobs, costCodes }: Props) {
           vendorName,
           amountCents: cents,
           note,
+          attachmentUrl,
         });
         router.push("/admin");
         router.refresh();
@@ -128,6 +130,19 @@ export function NewInvoiceForm({ jobs, costCodes }: Props) {
           rows={2}
           placeholder="e.g. invoice #, draw number..."
           className="w-full rounded-lg border border-gray-300 px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+      </div>
+
+      <div className="space-y-1">
+        <label className="text-sm font-medium text-gray-700">
+          Attachment Link (optional)
+        </label>
+        <input
+          type="url"
+          value={attachmentUrl}
+          onChange={(e) => setAttachmentUrl(e.target.value)}
+          placeholder="Paste the Google Drive link to the invoice PDF"
+          className="w-full rounded-lg border border-gray-300 px-3 py-3 text-base focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
       </div>
 

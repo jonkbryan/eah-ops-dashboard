@@ -82,6 +82,31 @@ export default async function AdminPage() {
                     {invoice.decisionNote}
                   </p>
                 )}
+                <div className="flex items-center justify-between gap-3">
+                  {invoice.attachmentUrl ? (
+                    <a
+                      href={invoice.attachmentUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm text-blue-600 hover:text-blue-800 underline"
+                    >
+                      View invoice
+                    </a>
+                  ) : (
+                    <span />
+                  )}
+                  {invoice.approvalSignature && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-gray-400">Approved by signature</span>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={invoice.approvalSignature}
+                        alt="Approval signature"
+                        className="h-8 border border-gray-200 rounded bg-white"
+                      />
+                    </div>
+                  )}
+                </div>
                 <MarkPaidForm invoiceId={invoice.id} amountCents={invoice.amountCents} />
               </div>
             ))}
@@ -108,6 +133,7 @@ export default async function AdminPage() {
                 costCodeLabel={invoice.costCode.label}
                 jobName={invoice.job.name}
                 intakeNote={invoice.note}
+                attachmentUrl={invoice.attachmentUrl}
                 showJobName
               />
             ))}

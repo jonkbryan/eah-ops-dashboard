@@ -20,6 +20,7 @@ export async function createInvoice(input: {
   vendorName: string;
   amountCents: number;
   note?: string;
+  attachmentUrl?: string;
 }) {
   const user = await requireUser();
 
@@ -51,6 +52,7 @@ export async function createInvoice(input: {
       vendorName: input.vendorName.trim(),
       amountCents: input.amountCents,
       note: input.note?.trim() || null,
+      attachmentUrl: input.attachmentUrl?.trim() || null,
     },
   });
 
@@ -64,6 +66,7 @@ export async function decideInvoice(input: {
   invoiceId: string;
   decision: Decision;
   note?: string;
+  signature?: string; // base64 PNG data URL; required when decision is "approved"
 }) {
   const user = await requireUser();
 
@@ -88,6 +91,10 @@ export async function decideInvoice(input: {
     throw new Error("Only admins can change a paid invoice");
   }
 
+  if (input.decision === "approved" && !input.signature) {
+    throw new Error("A signature is required to approve an invoice");
+  }
+
   await db.invoice.update({
     where: { id: invoice.id },
     data: {
@@ -95,6 +102,9 @@ export async function decideInvoice(input: {
       decisionNote: input.note?.trim() || null,
       decidedById: user.id,
       decidedAt: new Date(),
+      ...(input.decision === "approved"
+        ? { approvalSignature: input.signature }
+        : {}),
     },
   });
 

@@ -55,6 +55,7 @@ export default async function SuperintendentQueuePage() {
               costCodeLabel={invoice.costCode.label}
               jobName={invoice.job.name}
               intakeNote={invoice.note}
+              attachmentUrl={invoice.attachmentUrl}
             />
           ))}
         </div>

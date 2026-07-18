@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { decideInvoice } from "@/lib/actions/invoice-actions";
 import { formatCents } from "@/lib/domain";
+import { SignaturePad, type SignaturePadHandle } from "@/components/signature-pad";
 
 type Props = {
   invoiceId: string;
@@ -11,6 +12,7 @@ type Props = {
   costCodeLabel: string;
   jobName: string;
   intakeNote: string | null;
+  attachmentUrl?: string | null;
   showJobName?: boolean;
 };
 
@@ -21,6 +23,7 @@ export function InvoiceDecisionCard({
   costCodeLabel,
   jobName,
   intakeNote,
+  attachmentUrl,
   showJobName = false,
 }: Props) {
   const [note, setNote] = useState("");
@@ -29,18 +32,28 @@ export function InvoiceDecisionCard({
   const [busyAction, setBusyAction] = useState<
     "approved" | "rejected" | "flagged" | null
   >(null);
+  const [signing, setSigning] = useState(false);
+  const signaturePadRef = useRef<SignaturePadHandle>(null);
 
-  function submit(decision: "approved" | "rejected" | "flagged") {
+  function submit(decision: "approved" | "rejected" | "flagged", signature?: string) {
     setError(null);
     setBusyAction(decision);
     startTransition(async () => {
       try {
-        await decideInvoice({ invoiceId, decision, note });
+        await decideInvoice({ invoiceId, decision, note, signature });
       } catch (e) {
         setError(e instanceof Error ? e.message : "Something went wrong");
         setBusyAction(null);
       }
     });
+  }
+
+  function confirmApproval() {
+    if (!signaturePadRef.current || signaturePadRef.current.isEmpty()) {
+      setError("Please sign to approve.");
+      return;
+    }
+    submit("approved", signaturePadRef.current.toDataUrl());
   }
 
   return (
@@ -64,13 +77,26 @@ export function InvoiceDecisionCard({
         </p>
       )}
 
-      <textarea
-        value={note}
-        onChange={(e) => setNote(e.target.value)}
-        placeholder="Optional note..."
-        rows={2}
-        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-blue-500"
-      />
+      {attachmentUrl && (
+        <a
+          href={attachmentUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800 underline"
+        >
+          View invoice
+        </a>
+      )}
+
+      {!signing && (
+        <textarea
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          placeholder="Optional note..."
+          rows={2}
+          className="w-full rounded-lg border border-gray-300 px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+      )}
 
       {error && (
         <p className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
@@ -78,29 +104,67 @@ export function InvoiceDecisionCard({
         </p>
       )}
 
-      <div className="grid grid-cols-3 gap-2">
-        <button
-          onClick={() => submit("rejected")}
-          disabled={pending}
-          className="rounded-lg bg-red-50 text-red-700 font-medium py-3 text-sm active:bg-red-100 disabled:opacity-50"
-        >
-          {busyAction === "rejected" ? "..." : "Reject"}
-        </button>
-        <button
-          onClick={() => submit("flagged")}
-          disabled={pending}
-          className="rounded-lg bg-amber-50 text-amber-700 font-medium py-3 text-sm active:bg-amber-100 disabled:opacity-50"
-        >
-          {busyAction === "flagged" ? "..." : "Flag"}
-        </button>
-        <button
-          onClick={() => submit("approved")}
-          disabled={pending}
-          className="rounded-lg bg-green-600 text-white font-medium py-3 text-sm active:bg-green-700 disabled:opacity-50"
-        >
-          {busyAction === "approved" ? "..." : "Approve"}
-        </button>
-      </div>
+      {signing ? (
+        <div className="space-y-3">
+          <p className="text-sm font-medium text-gray-700">
+            Sign to approve this invoice
+          </p>
+          <SignaturePad ref={signaturePadRef} />
+          <div className="grid grid-cols-3 gap-2">
+            <button
+              onClick={() => {
+                setSigning(false);
+                setError(null);
+              }}
+              disabled={pending}
+              className="rounded-lg bg-white border border-gray-300 text-gray-700 font-medium py-3 text-sm disabled:opacity-50"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => signaturePadRef.current?.clear()}
+              disabled={pending}
+              className="rounded-lg bg-white border border-gray-300 text-gray-700 font-medium py-3 text-sm disabled:opacity-50"
+            >
+              Clear
+            </button>
+            <button
+              onClick={confirmApproval}
+              disabled={pending}
+              className="rounded-lg bg-green-600 text-white font-medium py-3 text-sm active:bg-green-700 disabled:opacity-50"
+            >
+              {busyAction === "approved" ? "..." : "Confirm"}
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="grid grid-cols-3 gap-2">
+          <button
+            onClick={() => submit("rejected")}
+            disabled={pending}
+            className="rounded-lg bg-red-50 text-red-700 font-medium py-3 text-sm active:bg-red-100 disabled:opacity-50"
+          >
+            {busyAction === "rejected" ? "..." : "Reject"}
+          </button>
+          <button
+            onClick={() => submit("flagged")}
+            disabled={pending}
+            className="rounded-lg bg-amber-50 text-amber-700 font-medium py-3 text-sm active:bg-amber-100 disabled:opacity-50"
+          >
+            {busyAction === "flagged" ? "..." : "Flag"}
+          </button>
+          <button
+            onClick={() => {
+              setError(null);
+              setSigning(true);
+            }}
+            disabled={pending}
+            className="rounded-lg bg-green-600 text-white font-medium py-3 text-sm active:bg-green-700 disabled:opacity-50"
+          >
+            Approve
+          </button>
+        </div>
+      )}
     </div>
   );
 }
