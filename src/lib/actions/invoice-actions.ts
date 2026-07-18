@@ -14,6 +14,52 @@ async function requireUser() {
 
 type Decision = "approved" | "rejected" | "flagged";
 
+export async function createInvoice(input: {
+  jobId: string;
+  costCodeId: string;
+  vendorName: string;
+  amountCents: number;
+  note?: string;
+}) {
+  const user = await requireUser();
+
+  if (!user.isAdmin) {
+    throw new Error("Only admins can log invoices");
+  }
+  if (!input.vendorName.trim()) {
+    throw new Error("Vendor name is required");
+  }
+  if (!Number.isFinite(input.amountCents) || input.amountCents <= 0) {
+    throw new Error("Amount must be greater than zero");
+  }
+
+  const [job, costCode] = await Promise.all([
+    db.job.findUnique({ where: { id: input.jobId } }),
+    db.costCode.findUnique({ where: { id: input.costCodeId } }),
+  ]);
+  if (!job) {
+    throw new Error("Job not found");
+  }
+  if (!costCode) {
+    throw new Error("Cost code not found");
+  }
+
+  const invoice = await db.invoice.create({
+    data: {
+      jobId: input.jobId,
+      costCodeId: input.costCodeId,
+      vendorName: input.vendorName.trim(),
+      amountCents: input.amountCents,
+      note: input.note?.trim() || null,
+    },
+  });
+
+  revalidatePath("/admin");
+  revalidatePath("/superintendent");
+
+  return invoice.id;
+}
+
 export async function decideInvoice(input: {
   invoiceId: string;
   decision: Decision;

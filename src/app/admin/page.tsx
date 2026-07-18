@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
@@ -31,9 +32,17 @@ export default async function AdminPage() {
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-6 space-y-8">
-      <div>
-        <h1 className="text-xl font-semibold text-gray-900">Admin</h1>
-        <p className="text-sm text-gray-500">All jobs, {session.user.name}</p>
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-semibold text-gray-900">Admin</h1>
+          <p className="text-sm text-gray-500">All jobs, {session.user.name}</p>
+        </div>
+        <Link
+          href="/admin/invoices/new"
+          className="shrink-0 rounded-lg bg-blue-600 text-white font-medium px-4 py-2.5 text-sm active:bg-blue-700"
+        >
+          + Log Invoice
+        </Link>
       </div>
 
       <section className="space-y-3">

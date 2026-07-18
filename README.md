@@ -4,8 +4,7 @@ Internal invoice approval & payment tracking. Replaces two AppSheet tools plus
 a Google Sheets + Make.com workflow.
 
 **Core flow (this is all v1 does):**
-1. An invoice is logged against a job and cost code (currently via seed data /
-   Prisma Studio — no "create invoice" screen yet, see Known Limitations).
+1. An admin logs an invoice against a job and cost code (`/admin/invoices/new`).
 2. It routes to the superintendent assigned to that job.
 3. The superintendent approves, rejects, or flags it (with an optional note)
    from a mobile-friendly queue.
@@ -97,18 +96,25 @@ place** so this can be reused for a future client without touching app code:
   formatting). No client values.
 - `src/app/superintendent/` — superintendent approval queue.
 - `src/app/admin/` — admin payment queue + cross-job override view.
+- `src/app/admin/invoices/new/` — invoice intake form (admin-only; see below).
 - `src/lib/actions/invoice-actions.ts` — server-side logic for
-  approve/reject/flag and mark-paid, with role checks enforced on the
-  server (not just hidden in the UI).
+  create/approve/reject/flag and mark-paid, with role checks enforced on
+  the server (not just hidden in the UI).
 
 Money is stored as integer cents (`amountCents`, `budgetCents`) to avoid
 floating-point rounding bugs on financial data.
 
+**Invoice intake is admin-only.** Logging an invoice (`/admin/invoices/new`)
+is restricted to admins, matching how invoices actually arrive today — the
+office/admin side data-enters vendor invoices as they come in, then it
+routes to the superintendent for a decision. Superintendents never create
+invoices, only decide on ones already logged. If EAH wants superintendents
+to be able to log invoices from the field too, that's a small follow-up
+(loosen the `isAdmin` check in `createInvoice`, and possibly scope the job
+dropdown to their assigned job).
+
 ## Known limitations (intentionally out of scope for v1)
 
-- **No "create invoice" screen.** Invoices currently get into the system via
-  the seed file or `npx prisma studio`. Building an intake form is the
-  natural next step once this core loop is confirmed to work end to end.
 - **No budget-vs-actual reporting or full dashboard.**
 - **No QuickBooks integration.**
 - **No password reset flow.**
