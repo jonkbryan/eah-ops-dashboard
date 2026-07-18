@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
+import { insertInvoice } from "@/lib/invoice-core";
 
 async function requireUser() {
   const session = await auth();
@@ -45,15 +46,13 @@ export async function createInvoice(input: {
     throw new Error("Cost code not found");
   }
 
-  const invoice = await db.invoice.create({
-    data: {
-      jobId: input.jobId,
-      costCodeId: input.costCodeId,
-      vendorName: input.vendorName.trim(),
-      amountCents: input.amountCents,
-      note: input.note?.trim() || null,
-      attachmentUrl: input.attachmentUrl?.trim() || null,
-    },
+  const invoice = await insertInvoice({
+    jobId: input.jobId,
+    costCodeId: input.costCodeId,
+    vendorName: input.vendorName,
+    amountCents: input.amountCents,
+    note: input.note,
+    attachmentUrl: input.attachmentUrl,
   });
 
   revalidatePath("/admin");

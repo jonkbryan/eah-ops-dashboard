@@ -148,6 +148,45 @@ only applies to Approve; Reject and Flag still submit immediately with no
 signature required, since they don't authorize spending. Admins can see
 the captured signature on the "Ready to Pay" cards in `/admin`.
 
+## External invoice intake: `POST /api/invoices/ingest`
+
+A machine-to-machine endpoint so an external system (e.g. a Make.com
+scenario) can create an invoice directly, without a user session. This is
+meant to eventually sit alongside — not replace — the existing Make.com →
+Google Sheets pipeline as a dual-write during a transition period; see the
+comment block at the top of `src/app/api/invoices/ingest/route.ts` for the
+exact request/response contract.
+
+**Auth:** header `x-api-key: <INVOICE_INGEST_API_KEY>` (set in `.env`,
+generate one with `node -e "console.log(require('crypto').randomBytes(24).toString('hex'))"`).
+
+**Try it yourself** (swap in your own key and real job/cost-code values —
+`job` must exactly match an existing Job name, `costCode` must exactly
+match an existing CostCode code; both 400 with a clear message if not):
+
+```bash
+curl -X POST http://localhost:3000/api/invoices/ingest \
+  -H "Content-Type: application/json" \
+  -H "x-api-key: YOUR_KEY_HERE" \
+  -d '{
+    "vendor": "Texas Building Supply",
+    "amount": 3200.00,
+    "job": "Melody Gates",
+    "costCode": "0600",
+    "note": "optional",
+    "attachmentUrl": "optional, e.g. a Google Drive link"
+  }'
+```
+
+Success: `201` with `{"id": "...", "status": "pending"}` — the invoice
+immediately appears in the assigned superintendent's queue, same as one
+entered by hand. Failure: `400`/`401` with `{"error": "..."}` describing
+exactly what was wrong (bad key, missing field, unmatched job/cost code).
+
+It does **not** create jobs or cost codes on the fly — an unmatched name
+fails loudly rather than silently creating bad data, so a typo (or a new
+job EAH hasn't added yet) surfaces immediately instead of getting buried.
+
 ## Known limitations (intentionally out of scope for v1)
 
 - **No budget-vs-actual reporting or full dashboard.**
