@@ -58,10 +58,13 @@ Visit http://localhost:3000.
 ## Logging in
 
 Every seeded account starts with the password **`ChangeMe123!`**
-(see `prisma/seed-data/eah.ts` → `DEFAULT_PASSWORD`). There is no
-self-service password reset in v1 — to change a password, update it directly
-in the database (e.g. via `npx prisma studio`, hashing the new value with
-bcrypt) or re-run the seed after editing the config.
+(see `prisma/seed-data/eah.ts` → `DEFAULT_PASSWORD`). Each person should
+sign in and change it from **My Account** (click your name in the top nav,
+or go to `/account`) — this requires knowing the current password, so it's
+not a substitute for a "forgot password" flow. There is still no
+self-service *reset* for someone who's locked out; that requires updating
+the database directly (e.g. via `npx prisma studio`, hashing the new value
+with bcrypt) or re-running the seed after editing the config.
 
 Seeded accounts:
 
@@ -122,7 +125,9 @@ dropdown to their assigned job).
 
 - **No budget-vs-actual reporting or full dashboard.**
 - **No QuickBooks integration.**
-- **No password reset flow.**
+- **No "forgot password" / admin-triggered reset.** Users can change their
+  own password from `/account` if they know their current one (see
+  Logging In above), but there's no recovery path for someone locked out.
 - **No reopening a paid invoice.** Admins can override pending/flagged/
   rejected/approved invoices at any stage, but once an invoice is marked
   paid there's no UI to reverse it (avoids leaving an orphaned Payment

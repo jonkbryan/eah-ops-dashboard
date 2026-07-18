@@ -32,9 +32,12 @@ export async function AppNav() {
           </nav>
         </div>
         <div className="flex items-center gap-3 shrink-0">
-          <span className="text-sm text-gray-500 hidden sm:inline truncate max-w-[10rem]">
+          <Link
+            href="/account"
+            className="text-sm text-gray-500 hover:text-gray-900 truncate max-w-[5rem] sm:max-w-[10rem]"
+          >
             {name}
-          </span>
+          </Link>
           <SignOutButton />
         </div>
       </div>
