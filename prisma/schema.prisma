@@ -1,0 +1,92 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+// ---------------------------------------------------------------------------
+// Core generic schema. No EAH-specific values live here — job/cost-code/user
+// data is loaded separately via prisma/seed.ts so this schema is reusable for
+// future clients.
+// ---------------------------------------------------------------------------
+
+model User {
+  id               String   @id @default(cuid())
+  name             String
+  email            String   @unique
+  passwordHash     String
+  // A user can hold either or both roles (e.g. Eli/Phil hold both).
+  isSuperintendent Boolean  @default(false)
+  isAdmin          Boolean  @default(false)
+  createdAt        DateTime @default(now())
+
+  jobsSupervised   Job[]     @relation("JobSuperintendent")
+  invoiceDecisions Invoice[] @relation("InvoiceDecidedBy")
+  paymentsRecorded Payment[] @relation("PaymentRecordedBy")
+}
+
+model Job {
+  id               String   @id @default(cuid())
+  name             String
+  status           String   @default("active")
+  budgetCents      Int?
+  superintendentId String?
+  createdAt        DateTime @default(now())
+
+  superintendent User?     @relation("JobSuperintendent", fields: [superintendentId], references: [id])
+  invoices       Invoice[]
+}
+
+model CostCode {
+  id       String @id @default(cuid())
+  code     String @unique
+  label    String
+  invoices Invoice[]
+}
+
+model Invoice {
+  id           String    @id @default(cuid())
+  vendorName   String
+  jobId        String
+  costCodeId   String
+  amountCents  Int
+  // pending -> approved | rejected | flagged -> paid
+  status       String    @default("pending")
+  note         String?
+  decisionNote String?
+  decidedById  String?
+  decidedAt    DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  job       Job       @relation(fields: [jobId], references: [id])
+  costCode  CostCode  @relation(fields: [costCodeId], references: [id])
+  decidedBy User?     @relation("InvoiceDecidedBy", fields: [decidedById], references: [id])
+  payments  Payment[]
+
+  @@index([jobId])
+  @@index([status])
+}
+
+model Payment {
+  id           String   @id @default(cuid())
+  invoiceId    String
+  amountCents  Int
+  method       String
+  paidAt       DateTime @default(now())
+  recordedById String
+  createdAt    DateTime @default(now())
+
+  invoice    Invoice @relation(fields: [invoiceId], references: [id])
+  recordedBy User    @relation("PaymentRecordedBy", fields: [recordedById], references: [id])
+
+  @@index([invoiceId])
+}
