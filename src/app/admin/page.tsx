@@ -37,12 +37,20 @@ export default async function AdminPage() {
           <h1 className="text-xl font-semibold text-gray-900">Admin</h1>
           <p className="text-sm text-gray-500">All jobs, {session.user.name}</p>
         </div>
-        <Link
-          href="/admin/invoices/new"
-          className="shrink-0 rounded-lg bg-blue-600 text-white font-medium px-4 py-2.5 text-sm active:bg-blue-700"
-        >
-          + Log Invoice
-        </Link>
+        <div className="flex items-center gap-2 shrink-0">
+          <Link
+            href="/admin/jobs"
+            className="rounded-lg bg-white border border-gray-300 text-gray-700 font-medium px-4 py-2.5 text-sm hover:bg-gray-50"
+          >
+            Jobs
+          </Link>
+          <Link
+            href="/admin/invoices/new"
+            className="rounded-lg bg-blue-600 text-white font-medium px-4 py-2.5 text-sm active:bg-blue-700"
+          >
+            + Log Invoice
+          </Link>
+        </div>
       </div>
 
       <section className="space-y-3">

@@ -97,9 +97,14 @@ place** so this can be reused for a future client without touching app code:
 - `src/app/superintendent/` — superintendent approval queue.
 - `src/app/admin/` — admin payment queue + cross-job override view.
 - `src/app/admin/invoices/new/` — invoice intake form (admin-only; see below).
+- `src/app/admin/jobs/` — job list, create, and edit (admin-only). Editing a
+  job's superintendent immediately re-routes any of its pending/flagged
+  invoices to the newly assigned superintendent's queue.
 - `src/lib/actions/invoice-actions.ts` — server-side logic for
   create/approve/reject/flag and mark-paid, with role checks enforced on
   the server (not just hidden in the UI).
+- `src/lib/actions/job-actions.ts` — server-side logic for creating and
+  updating jobs (admin-only).
 
 Money is stored as integer cents (`amountCents`, `budgetCents`) to avoid
 floating-point rounding bugs on financial data.
