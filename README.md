@@ -66,22 +66,24 @@ self-service *reset* for someone who's locked out; that requires updating
 the database directly (e.g. via `npx prisma studio`, hashing the new value
 with bcrypt) or re-running the seed after editing the config.
 
-Seeded accounts:
+Seeded accounts (real emails, verified against the team's actual
+AppSheet/Google Sheet setup — see note in `prisma/seed-data/eah.ts`):
 
 | Name | Email | Role |
 |---|---|---|
-| Nick Allen | nick.allen@elijahanthonyhomes.com | Superintendent |
-| David Marshall | david.marshall@elijahanthonyhomes.com | Superintendent |
-| Dan Bromley | dan.bromley@elijahanthonyhomes.com | Superintendent |
-| Jon Bryan | jonkbryan@yahoo.com | Admin |
-| Allie Russell | allie.russell@elijahanthonyhomes.com | Admin |
-| Haley Anthony | haley.anthony@elijahanthonyhomes.com | Admin |
-| Eli Anthony | eli.anthony@elijahanthonyhomes.com | Superintendent + Admin |
-| Phil Anthony | phil.anthony@elijahanthonyhomes.com | Superintendent + Admin |
+| Nick Allen | nick@anthonybryanconstruction.com | Superintendent |
+| David Marshall | david@anthonybryanconstruction.com | Superintendent |
+| Dan Bromley | dan@anthonybryanconstruction.com | Superintendent |
+| Jon Bryan | jon@anthonybryanconstruction.com | Admin |
+| Allie Russell | allie@anthonybryanconstruction.com | Admin |
+| Haley Anthony | haley@anthonybryanconstruction.com | Admin |
+| Eli Anthony | elijah@anthonybryanconstruction.com | Superintendent + Admin |
+| Phil Anthony | phil@anthonybryanconstruction.com | Superintendent + Admin |
 
-Every email except Jon Bryan's is a placeholder (`@elijahanthonyhomes.com`) —
-update `prisma/seed-data/eah.ts` with real addresses before handing this to
-the team, then re-run `npm run db:seed` (it's safe to re-run; it upserts).
+Note the domain is `anthonybryanconstruction.com`, not
+`elijahanthonyhomes.com` — that surprised us too; see the comment at the top
+of `prisma/seed-data/eah.ts` for why. **Jon logs in with
+`jon@anthonybryanconstruction.com`, not his personal email.**
 
 ## Project structure
 
