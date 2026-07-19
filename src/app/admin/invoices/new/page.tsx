@@ -8,9 +8,10 @@ export default async function NewInvoicePage() {
   if (!session?.user) redirect("/login");
   if (!session.user.isAdmin) redirect("/");
 
-  const [jobs, costCodes] = await Promise.all([
+  const [jobs, costCodes, vendors] = await Promise.all([
     db.job.findMany({ orderBy: { name: "asc" } }),
     db.costCode.findMany({ orderBy: { code: "asc" } }),
+    db.vendor.findMany({ orderBy: { name: "asc" } }),
   ]);
 
   return (
@@ -23,6 +24,7 @@ export default async function NewInvoicePage() {
       <NewInvoiceForm
         jobs={jobs.map((j) => ({ id: j.id, name: j.name }))}
         costCodes={costCodes.map((c) => ({ id: c.id, code: c.code, label: c.label }))}
+        vendors={vendors.map((v) => ({ id: v.id, name: v.name }))}
       />
     </main>
   );

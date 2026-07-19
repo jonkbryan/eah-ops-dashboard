@@ -18,7 +18,7 @@ type Decision = "approved" | "rejected" | "flagged";
 export async function createInvoice(input: {
   jobId: string;
   costCodeId: string;
-  vendorName: string;
+  vendorId: string;
   amountCents: number;
   note?: string;
   attachmentUrl?: string;
@@ -28,16 +28,14 @@ export async function createInvoice(input: {
   if (!user.isAdmin) {
     throw new Error("Only admins can log invoices");
   }
-  if (!input.vendorName.trim()) {
-    throw new Error("Vendor name is required");
-  }
   if (!Number.isFinite(input.amountCents) || input.amountCents <= 0) {
     throw new Error("Amount must be greater than zero");
   }
 
-  const [job, costCode] = await Promise.all([
+  const [job, costCode, vendor] = await Promise.all([
     db.job.findUnique({ where: { id: input.jobId } }),
     db.costCode.findUnique({ where: { id: input.costCodeId } }),
+    db.vendor.findUnique({ where: { id: input.vendorId } }),
   ]);
   if (!job) {
     throw new Error("Job not found");
@@ -45,11 +43,14 @@ export async function createInvoice(input: {
   if (!costCode) {
     throw new Error("Cost code not found");
   }
+  if (!vendor) {
+    throw new Error("Vendor not found");
+  }
 
   const invoice = await insertInvoice({
     jobId: input.jobId,
     costCodeId: input.costCodeId,
-    vendorName: input.vendorName,
+    vendorId: input.vendorId,
     amountCents: input.amountCents,
     note: input.note,
     attachmentUrl: input.attachmentUrl,
@@ -149,6 +150,39 @@ export async function markInvoicePaid(input: {
       data: { status: "paid" },
     }),
   ]);
+
+  revalidatePath("/admin");
+}
+
+// Marks/updates which Friday payment batch an approved invoice is slated
+// for — scheduling metadata only, doesn't change status or record a
+// payment. Pass null to clear it.
+export async function setScheduledPaymentDate(input: {
+  invoiceId: string;
+  scheduledPaymentDate: string | null; // yyyy-mm-dd or null to clear
+}) {
+  const user = await requireUser();
+
+  if (!user.isAdmin) {
+    throw new Error("Only admins can schedule payments");
+  }
+
+  const invoice = await db.invoice.findUnique({ where: { id: input.invoiceId } });
+  if (!invoice) {
+    throw new Error("Invoice not found");
+  }
+  if (invoice.status !== "approved") {
+    throw new Error("Only approved invoices can be scheduled for payment");
+  }
+
+  await db.invoice.update({
+    where: { id: invoice.id },
+    data: {
+      scheduledPaymentDate: input.scheduledPaymentDate
+        ? new Date(`${input.scheduledPaymentDate}T00:00:00`)
+        : null,
+    },
+  });
 
   revalidatePath("/admin");
 }

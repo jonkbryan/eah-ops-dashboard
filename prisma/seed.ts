@@ -8,13 +8,16 @@ import bcrypt from "bcryptjs";
 import {
   costCodes,
   users,
+  vendors,
   jobs,
-  sampleInvoices,
+  invoices,
   DEFAULT_PASSWORD,
 } from "./seed-data/eah";
 
 const adapter = new PrismaBetterSqlite3({ url: process.env.DATABASE_URL! });
 const db = new PrismaClient({ adapter });
+
+const EMAIL_DOMAIN = "anthonybryanconstruction.com";
 
 async function main() {
   console.log("Seeding cost codes...");
@@ -46,14 +49,24 @@ async function main() {
     });
   }
 
+  console.log("Seeding vendors...");
+  for (const name of vendors) {
+    await db.vendor.upsert({
+      where: { name },
+      update: {},
+      create: { name },
+    });
+  }
+
   console.log("Seeding jobs...");
   for (const j of jobs) {
+    const superintendentEmail = `${j.superintendentFirstName}@${EMAIL_DOMAIN}`;
     const superintendent = await db.user.findUnique({
-      where: { email: j.superintendentEmail.toLowerCase() },
+      where: { email: superintendentEmail },
     });
     if (!superintendent) {
       throw new Error(
-        `Job "${j.name}" references unknown superintendent email ${j.superintendentEmail}`
+        `Job "${j.name}" references unknown superintendent email ${superintendentEmail}`
       );
     }
 
@@ -63,7 +76,7 @@ async function main() {
         where: { id: existing.id },
         data: {
           superintendentId: superintendent.id,
-          budgetCents: j.budgetCents,
+          status: j.status,
         },
       });
     } else {
@@ -71,45 +84,78 @@ async function main() {
         data: {
           name: j.name,
           superintendentId: superintendent.id,
-          budgetCents: j.budgetCents,
+          status: j.status,
         },
       });
     }
   }
 
-  console.log("Seeding sample invoices...");
-  for (const inv of sampleInvoices) {
-    const job = await db.job.findFirst({ where: { name: inv.jobName } });
+  // Payments recorded against historically-paid invoices need a
+  // recordedById. We don't actually know who reconciled each one (the real
+  // sheet doesn't track that), so this attributes them to the first admin
+  // account as the AP contact of record, purely to satisfy the schema.
+  const apUser = await db.user.findFirst({ where: { isAdmin: true } });
+  if (!apUser) {
+    throw new Error("No admin user exists to attribute historical payments to");
+  }
+
+  console.log("Seeding invoices...");
+  let created = 0;
+  for (const inv of invoices) {
+    const [job, costCode, vendor] = await Promise.all([
+      db.job.findFirst({ where: { name: inv.job } }),
+      db.costCode.findUnique({ where: { code: inv.costCode } }),
+      db.vendor.findUnique({ where: { name: inv.vendor } }),
+    ]);
     if (!job) {
-      throw new Error(`Invoice references unknown job "${inv.jobName}"`);
+      throw new Error(`Invoice references unknown job "${inv.job}"`);
     }
-    const costCode = await db.costCode.findUnique({
-      where: { code: inv.costCode },
-    });
     if (!costCode) {
       throw new Error(`Invoice references unknown cost code "${inv.costCode}"`);
+    }
+    if (!vendor) {
+      throw new Error(`Invoice references unknown vendor "${inv.vendor}"`);
     }
 
     const alreadyExists = await db.invoice.findFirst({
       where: {
         jobId: job.id,
         costCodeId: costCode.id,
-        vendorName: inv.vendorName,
+        vendorId: vendor.id,
         amountCents: inv.amountCents,
       },
     });
-    if (!alreadyExists) {
-      await db.invoice.create({
+    if (alreadyExists) {
+      continue;
+    }
+
+    const createdInvoice = await db.invoice.create({
+      data: {
+        jobId: job.id,
+        costCodeId: costCode.id,
+        vendorId: vendor.id,
+        amountCents: inv.amountCents,
+        status: inv.status,
+        note: inv.note,
+        attachmentUrl: inv.invoiceLink,
+        createdAt: new Date(`${inv.createdDate}T00:00:00`),
+      },
+    });
+    created++;
+
+    if (inv.status === "paid" && inv.paidDate) {
+      await db.payment.create({
         data: {
-          jobId: job.id,
-          costCodeId: costCode.id,
-          vendorName: inv.vendorName,
-          amountCents: inv.amountCents,
-          note: inv.note,
+          invoiceId: createdInvoice.id,
+          amountCents: inv.paidAmountCents ?? inv.amountCents,
+          method: "Check",
+          paidAt: new Date(`${inv.paidDate}T00:00:00`),
+          recordedById: apUser.id,
         },
       });
     }
   }
+  console.log(`  ${created} new invoice(s) created (${invoices.length - created} already existed).`);
 
   console.log("Seed complete.");
 }

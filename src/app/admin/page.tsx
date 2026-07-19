@@ -15,17 +15,17 @@ export default async function AdminPage() {
   const [readyToPay, needsDecision, history] = await Promise.all([
     db.invoice.findMany({
       where: { status: "approved" },
-      include: { job: true, costCode: true },
+      include: { job: true, costCode: true, vendor: true },
       orderBy: { decidedAt: "asc" },
     }),
     db.invoice.findMany({
       where: { status: { in: ["pending", "flagged"] } },
-      include: { job: true, costCode: true },
+      include: { job: true, costCode: true, vendor: true },
       orderBy: { createdAt: "asc" },
     }),
     db.invoice.findMany({
       where: { status: { in: ["rejected", "paid"] } },
-      include: { job: true, costCode: true, payments: true },
+      include: { job: true, costCode: true, vendor: true, payments: true },
       orderBy: { updatedAt: "desc" },
       take: 20,
     }),
@@ -56,13 +56,14 @@ export default async function AdminPage() {
         <PaymentBatchSection
           invoices={readyToPay.map((invoice) => ({
             id: invoice.id,
-            vendorName: invoice.vendorName,
+            vendorName: invoice.vendor.name,
             amountCents: invoice.amountCents,
             costCodeLabel: invoice.costCode.label,
             jobName: invoice.job.name,
             decisionNote: invoice.decisionNote,
             attachmentUrl: invoice.attachmentUrl,
             approvalSignature: invoice.approvalSignature,
+            scheduledPaymentDate: invoice.scheduledPaymentDate,
           }))}
         />
       </section>
@@ -81,7 +82,7 @@ export default async function AdminPage() {
               <InvoiceDecisionCard
                 key={invoice.id}
                 invoiceId={invoice.id}
-                vendorName={invoice.vendorName}
+                vendorName={invoice.vendor.name}
                 amountCents={invoice.amountCents}
                 costCodeLabel={invoice.costCode.label}
                 jobName={invoice.job.name}
@@ -107,7 +108,7 @@ export default async function AdminPage() {
               >
                 <div className="min-w-0">
                   <p className="text-sm font-medium text-gray-900 truncate">
-                    {invoice.vendorName}
+                    {invoice.vendor.name}
                   </p>
                   <p className="text-xs text-gray-500 truncate">
                     {invoice.costCode.label} · {invoice.job.name}

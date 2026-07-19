@@ -37,6 +37,7 @@ export default async function EditJobPage({
         superintendents={superintendents.map((s) => ({ id: s.id, name: s.name }))}
         initial={{
           name: job.name,
+          address: job.address,
           superintendentId: job.superintendentId ?? superintendents[0]?.id ?? "",
           budgetCents: job.budgetCents,
           status: job.status as JobStatus,

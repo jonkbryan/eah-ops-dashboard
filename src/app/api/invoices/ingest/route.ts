@@ -9,7 +9,7 @@ import { dollarsToCents } from "@/lib/domain";
 //
 // Request: POST, JSON body, header `x-api-key: <INVOICE_INGEST_API_KEY>`
 //   {
-//     "vendor": "Texas Building Supply",
+//     "vendor": "Texas Building Supply", // must exactly match an existing Vendor name
 //     "amount": 3200.00,           // dollars, not cents
 //     "job": "Melody Gates",       // must exactly match an existing Job name
 //     "costCode": "0600",          // must exactly match an existing CostCode code
@@ -18,8 +18,8 @@ import { dollarsToCents } from "@/lib/domain";
 //   }
 //
 // Response: 201 with { id, status } on success; 400/401 with { error } on
-// failure. Job/cost code must already exist — this does not create them,
-// so a typo or new job/vendor surfaces as a clear error rather than
+// failure. Job/cost code/vendor must already exist — this does not create
+// them, so a typo or new job/vendor surfaces as a clear error rather than
 // silently creating bad data.
 export async function POST(request: NextRequest) {
   const apiKey = request.headers.get("x-api-key");
@@ -75,9 +75,10 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const [jobRecord, costCodeRecord] = await Promise.all([
+  const [jobRecord, costCodeRecord, vendorRecord] = await Promise.all([
     db.job.findFirst({ where: { name: job.trim() } }),
     db.costCode.findUnique({ where: { code: costCode.trim() } }),
+    db.vendor.findFirst({ where: { name: vendor.trim() } }),
   ]);
 
   if (!jobRecord) {
@@ -92,12 +93,18 @@ export async function POST(request: NextRequest) {
       { status: 400 }
     );
   }
+  if (!vendorRecord) {
+    return NextResponse.json(
+      { error: `No vendor found named "${vendor.trim()}" — check it matches exactly` },
+      { status: 400 }
+    );
+  }
 
   try {
     const invoice = await insertInvoice({
       jobId: jobRecord.id,
       costCodeId: costCodeRecord.id,
-      vendorName: vendor,
+      vendorId: vendorRecord.id,
       amountCents: dollarsToCents(amount),
       note: note as string | undefined,
       attachmentUrl: attachmentUrl as string | undefined,

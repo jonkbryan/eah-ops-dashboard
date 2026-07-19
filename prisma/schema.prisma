@@ -36,6 +36,7 @@ model User {
 model Job {
   id               String   @id @default(cuid())
   name             String
+  address          String?
   status           String   @default("active")
   budgetCents      Int?
   superintendentId String?
@@ -52,35 +53,47 @@ model CostCode {
   invoices Invoice[]
 }
 
+model Vendor {
+  id       String    @id @default(cuid())
+  name     String    @unique
+  invoices Invoice[]
+}
+
 model Invoice {
-  id                String    @id @default(cuid())
-  vendorName        String
-  jobId             String
-  costCodeId        String
-  amountCents       Int
+  id                   String    @id @default(cuid())
+  vendorId             String
+  jobId                String
+  costCodeId           String
+  amountCents          Int
   // pending -> approved | rejected | flagged -> paid
-  status            String    @default("pending")
-  note              String?
+  status               String    @default("pending")
+  note                 String?
   // Link to the invoice document (e.g. a Google Drive file). Just a URL for
   // now — not a file upload — see prisma/seed-data/eah.ts and the README for
   // why (EAH already has a Drive-based pipeline that owns the actual files).
-  attachmentUrl     String?
-  decisionNote      String?
+  attachmentUrl        String?
+  decisionNote         String?
   // Captured only when a superintendent approves (not on reject/flag) — a
   // base64 PNG data URL from the on-screen signature pad.
-  approvalSignature String?
-  decidedById       String?
-  decidedAt         DateTime?
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
+  approvalSignature    String?
+  decidedById          String?
+  decidedAt            DateTime?
+  // Which upcoming Friday payment batch this approved invoice is slated
+  // for. Scheduling metadata only — set before the invoice is actually
+  // marked paid, doesn't change status.
+  scheduledPaymentDate DateTime?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
 
   job       Job       @relation(fields: [jobId], references: [id])
   costCode  CostCode  @relation(fields: [costCodeId], references: [id])
+  vendor    Vendor    @relation(fields: [vendorId], references: [id])
   decidedBy User?     @relation("InvoiceDecidedBy", fields: [decidedById], references: [id])
   payments  Payment[]
 
   @@index([jobId])
   @@index([status])
+  @@index([vendorId])
 }
 
 model Payment {

@@ -17,7 +17,7 @@ export default async function SuperintendentQueuePage() {
         status: { in: ["pending", "flagged"] },
         job: { superintendentId: userId },
       },
-      include: { job: true, costCode: true },
+      include: { job: true, costCode: true, vendor: true },
       orderBy: { createdAt: "asc" },
     }),
     db.invoice.findMany({
@@ -25,7 +25,7 @@ export default async function SuperintendentQueuePage() {
         status: { in: ["approved", "rejected", "paid"] },
         job: { superintendentId: userId },
       },
-      include: { job: true, costCode: true },
+      include: { job: true, costCode: true, vendor: true },
       orderBy: { updatedAt: "desc" },
       take: 10,
     }),
@@ -50,7 +50,7 @@ export default async function SuperintendentQueuePage() {
             <InvoiceDecisionCard
               key={invoice.id}
               invoiceId={invoice.id}
-              vendorName={invoice.vendorName}
+              vendorName={invoice.vendor.name}
               amountCents={invoice.amountCents}
               costCodeLabel={invoice.costCode.label}
               jobName={invoice.job.name}
@@ -74,7 +74,7 @@ export default async function SuperintendentQueuePage() {
               >
                 <div className="min-w-0">
                   <p className="text-sm font-medium text-gray-900 truncate">
-                    {invoice.vendorName}
+                    {invoice.vendor.name}
                   </p>
                   <p className="text-xs text-gray-500 truncate">
                     {invoice.costCode.label}

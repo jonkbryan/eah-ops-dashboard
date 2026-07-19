@@ -25,6 +25,7 @@ async function assertSuperintendent(superintendentId: string) {
 
 type JobInput = {
   name: string;
+  address: string | null;
   superintendentId: string;
   budgetCents: number | null;
   status: JobStatus;
@@ -41,6 +42,7 @@ export async function createJob(input: JobInput) {
   const job = await db.job.create({
     data: {
       name: input.name.trim(),
+      address: input.address?.trim() || null,
       superintendentId: input.superintendentId,
       budgetCents: input.budgetCents,
       status: input.status,
@@ -70,6 +72,7 @@ export async function updateJob(input: JobInput & { jobId: string }) {
     where: { id: input.jobId },
     data: {
       name: input.name.trim(),
+      address: input.address?.trim() || null,
       superintendentId: input.superintendentId,
       budgetCents: input.budgetCents,
       status: input.status,

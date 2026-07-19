@@ -11,6 +11,7 @@ type Props = {
   superintendents: { id: string; name: string }[];
   initial?: {
     name: string;
+    address: string | null;
     superintendentId: string;
     budgetCents: number | null;
     status: JobStatus;
@@ -27,6 +28,7 @@ function statusLabel(status: string) {
 export function JobForm({ mode, jobId, superintendents, initial }: Props) {
   const router = useRouter();
   const [name, setName] = useState(initial?.name ?? "");
+  const [address, setAddress] = useState(initial?.address ?? "");
   const [superintendentId, setSuperintendentId] = useState(
     initial?.superintendentId ?? superintendents[0]?.id ?? ""
   );
@@ -67,9 +69,16 @@ export function JobForm({ mode, jobId, superintendents, initial }: Props) {
     startTransition(async () => {
       try {
         if (mode === "create") {
-          await createJob({ name, superintendentId, budgetCents, status });
+          await createJob({ name, address: address || null, superintendentId, budgetCents, status });
         } else if (jobId) {
-          await updateJob({ jobId, name, superintendentId, budgetCents, status });
+          await updateJob({
+            jobId,
+            name,
+            address: address || null,
+            superintendentId,
+            budgetCents,
+            status,
+          });
         }
         router.push("/admin/jobs");
         router.refresh();
@@ -85,11 +94,22 @@ export function JobForm({ mode, jobId, superintendents, initial }: Props) {
       className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 space-y-4"
     >
       <div className="space-y-1">
-        <label className="text-sm font-medium text-gray-700">Job Name / Address</label>
+        <label className="text-sm font-medium text-gray-700">Job Name (homeowner)</label>
         <input
           type="text"
           value={name}
           onChange={(e) => setName(e.target.value)}
+          placeholder="e.g. Melody Gates"
+          className="w-full rounded-lg border border-gray-300 px-3 py-3 text-base focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+      </div>
+
+      <div className="space-y-1">
+        <label className="text-sm font-medium text-gray-700">Address (optional)</label>
+        <input
+          type="text"
+          value={address}
+          onChange={(e) => setAddress(e.target.value)}
           placeholder="e.g. 412 Windridge Ct, Prosper, TX"
           className="w-full rounded-lg border border-gray-300 px-3 py-3 text-base focus:outline-none focus:ring-2 focus:ring-blue-500"
         />

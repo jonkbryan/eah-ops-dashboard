@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { markInvoicesPaidBatch } from "@/lib/actions/invoice-actions";
+import { markInvoicesPaidBatch, setScheduledPaymentDate } from "@/lib/actions/invoice-actions";
 import { formatCents, PAYMENT_METHODS, todayIso } from "@/lib/domain";
 import { MarkPaidForm } from "@/components/admin/mark-paid-form";
 
@@ -14,7 +14,82 @@ type ReadyInvoice = {
   decisionNote: string | null;
   attachmentUrl: string | null;
   approvalSignature: string | null;
+  scheduledPaymentDate: Date | null;
 };
+
+// EAH pays every Thursday; funds process/land Friday morning, so "which
+// Friday" is how the team actually talks about a payment batch. This is
+// specific to EAH's cadence, not a generic reusable concept.
+function getUpcomingFridays(count: number): string[] {
+  const dates: string[] = [];
+  const cursor = new Date();
+  cursor.setHours(0, 0, 0, 0);
+  while (cursor.getDay() !== 5) {
+    cursor.setDate(cursor.getDate() + 1);
+  }
+  for (let i = 0; i < count; i++) {
+    dates.push(cursor.toISOString().slice(0, 10));
+    cursor.setDate(cursor.getDate() + 7);
+  }
+  return dates;
+}
+
+function formatFriday(iso: string): string {
+  const [y, m, d] = iso.split("-").map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+  });
+}
+
+function ScheduleDropdown({
+  invoiceId,
+  scheduledPaymentDate,
+}: {
+  invoiceId: string;
+  scheduledPaymentDate: Date | null;
+}) {
+  const fridays = getUpcomingFridays(10);
+  const currentValue = scheduledPaymentDate
+    ? scheduledPaymentDate.toISOString().slice(0, 10)
+    : "";
+  const [value, setValue] = useState(currentValue);
+  const [pending, startTransition] = useTransition();
+
+  function handleChange(next: string) {
+    setValue(next);
+    startTransition(async () => {
+      try {
+        await setScheduledPaymentDate({
+          invoiceId,
+          scheduledPaymentDate: next || null,
+        });
+      } catch {
+        setValue(currentValue);
+      }
+    });
+  }
+
+  return (
+    <div className="flex items-center gap-2">
+      <label className="text-xs text-gray-500 shrink-0">Scheduled for</label>
+      <select
+        value={value}
+        onChange={(e) => handleChange(e.target.value)}
+        disabled={pending}
+        className="rounded-lg border border-gray-300 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+      >
+        <option value="">Not scheduled</option>
+        {fridays.map((f) => (
+          <option key={f} value={f}>
+            {formatFriday(f)}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
 
 export function PaymentBatchSection({ invoices }: { invoices: ReadyInvoice[] }) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -185,6 +260,10 @@ export function PaymentBatchSection({ invoices }: { invoices: ReadyInvoice[] }) 
                   </div>
                 )}
               </div>
+              <ScheduleDropdown
+                invoiceId={invoice.id}
+                scheduledPaymentDate={invoice.scheduledPaymentDate}
+              />
               <MarkPaidForm invoiceId={invoice.id} amountCents={invoice.amountCents} />
             </div>
           </div>

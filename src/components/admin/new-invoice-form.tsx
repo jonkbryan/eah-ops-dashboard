@@ -8,25 +8,28 @@ import { dollarsToCents } from "@/lib/domain";
 type Props = {
   jobs: { id: string; name: string }[];
   costCodes: { id: string; code: string; label: string }[];
+  vendors: { id: string; name: string }[];
 };
 
-export function NewInvoiceForm({ jobs, costCodes }: Props) {
+export function NewInvoiceForm({ jobs, costCodes, vendors }: Props) {
   const router = useRouter();
   const [jobId, setJobId] = useState(jobs[0]?.id ?? "");
   const [costCodeId, setCostCodeId] = useState(costCodes[0]?.id ?? "");
-  const [vendorName, setVendorName] = useState("");
+  const [vendorId, setVendorId] = useState(vendors[0]?.id ?? "");
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
   const [attachmentUrl, setAttachmentUrl] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
-  if (jobs.length === 0 || costCodes.length === 0) {
+  if (jobs.length === 0 || costCodes.length === 0 || vendors.length === 0) {
     return (
       <p className="text-sm text-gray-500 bg-white rounded-2xl border border-gray-200 p-6 text-center">
         {jobs.length === 0
           ? "No jobs exist yet — add one before logging an invoice."
-          : "No cost codes exist yet."}
+          : vendors.length === 0
+            ? "No vendors exist yet — add one before logging an invoice."
+            : "No cost codes exist yet."}
       </p>
     );
   }
@@ -35,10 +38,6 @@ export function NewInvoiceForm({ jobs, costCodes }: Props) {
     e.preventDefault();
     setError(null);
 
-    if (!vendorName.trim()) {
-      setError("Vendor name is required.");
-      return;
-    }
     const cents = dollarsToCents(parseFloat(amount));
     if (!Number.isFinite(cents) || cents <= 0) {
       setError("Enter a valid amount.");
@@ -50,7 +49,7 @@ export function NewInvoiceForm({ jobs, costCodes }: Props) {
         await createInvoice({
           jobId,
           costCodeId,
-          vendorName,
+          vendorId,
           amountCents: cents,
           note,
           attachmentUrl,
@@ -100,13 +99,17 @@ export function NewInvoiceForm({ jobs, costCodes }: Props) {
 
       <div className="space-y-1">
         <label className="text-sm font-medium text-gray-700">Vendor</label>
-        <input
-          type="text"
-          value={vendorName}
-          onChange={(e) => setVendorName(e.target.value)}
-          placeholder="Vendor name"
+        <select
+          value={vendorId}
+          onChange={(e) => setVendorId(e.target.value)}
           className="w-full rounded-lg border border-gray-300 px-3 py-3 text-base focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
+        >
+          {vendors.map((v) => (
+            <option key={v.id} value={v.id}>
+              {v.name}
+            </option>
+          ))}
+        </select>
       </div>
 
       <div className="space-y-1">

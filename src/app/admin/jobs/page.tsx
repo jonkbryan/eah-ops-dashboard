@@ -57,6 +57,7 @@ export default async function JobsPage() {
                 <p className="text-xs text-gray-500 truncate">
                   {job.superintendent ? job.superintendent.name : "Unassigned"} ·{" "}
                   {statusLabel(job.status)}
+                  {job.address ? ` · ${job.address}` : ""}
                 </p>
               </div>
               <p className="text-sm text-gray-500 shrink-0">

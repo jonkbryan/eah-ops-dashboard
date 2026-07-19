@@ -31,13 +31,13 @@ export default async function AllInvoicesPage({
       ...(search
         ? {
             OR: [
-              { vendorName: { contains: search } },
+              { vendor: { name: { contains: search } } },
               { job: { name: { contains: search } } },
             ],
           }
         : {}),
     },
-    include: { job: true, costCode: true },
+    include: { job: true, costCode: true, vendor: true },
     orderBy: { createdAt: "desc" },
   });
 
@@ -100,7 +100,7 @@ export default async function AllInvoicesPage({
             >
               <div className="min-w-0">
                 <p className="text-sm font-medium text-gray-900 truncate">
-                  {invoice.vendorName}
+                  {invoice.vendor.name}
                 </p>
                 <p className="text-xs text-gray-500 truncate">
                   {invoice.costCode.label} · {invoice.job.name} ·{" "}

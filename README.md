@@ -4,11 +4,13 @@ Internal invoice approval & payment tracking. Replaces two AppSheet tools plus
 a Google Sheets + Make.com workflow.
 
 **Core flow (this is all v1 does):**
-1. An admin logs an invoice against a job and cost code (`/admin/invoices/new`).
+1. An admin logs an invoice against a job, cost code, and vendor
+   (`/admin/invoices/new`).
 2. It routes to the superintendent assigned to that job.
-3. The superintendent approves, rejects, or flags it (with an optional note)
-   from a mobile-friendly queue.
-4. Approved invoices land in the admin payment queue.
+3. The superintendent approves (with a signature), rejects, or flags it
+   (with an optional note) from a mobile-friendly queue.
+4. Approved invoices land in the admin payment queue, where an admin can
+   mark which upcoming Friday it's scheduled to be paid.
 5. An admin marks it paid, logging the payment date, method, and amount.
 6. Admins can see and override any invoice at any stage, on any job.
 
@@ -39,8 +41,9 @@ node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
 Paste the output as the value of `AUTH_SECRET` in `.env`. Leave
 `DATABASE_URL` as-is (`file:./dev.db`) unless you have a reason to change it.
 
-Create the database and load EAH's starter data (users, cost codes, one
-sample job/invoice):
+Create the database and load EAH's real data (users, cost codes, all 35
+jobs, all 19 vendors, and the full historical invoice log pulled from the
+"EAH Master Invoice" Google Sheet):
 
 ```bash
 npx prisma migrate dev
@@ -90,12 +93,15 @@ of `prisma/seed-data/eah.ts` for why. **Jon logs in with
 The system is built generically; **all EAH-specific data lives in one
 place** so this can be reused for a future client without touching app code:
 
-- `prisma/schema.prisma` — generic data model (User, Job, CostCode, Invoice,
-  Payment). No client-specific values.
+- `prisma/schema.prisma` — generic data model (User, Job, Vendor, CostCode,
+  Invoice, Payment). No client-specific values.
 - `prisma/seed-data/eah.ts` — **EAH's actual data**: the 36 cost codes, the 8
-  users and their roles, jobs, and a sample invoice. To onboard a different
-  client, copy this file, edit the values, and point `prisma/seed.ts`'s
-  import at the new file.
+  users and their roles, all 35 real jobs, all 19 real vendors, and the full
+  historical invoice log (95 real invoices, extracted from the "EAH Master
+  Invoice" Google Sheet — see the header comment in that file for exclusions
+  and vendor-name normalization notes). To onboard a different client, copy
+  this file, edit the values, and point `prisma/seed.ts`'s import at the new
+  file.
 - `prisma/seed.ts` — generic seed runner, knows nothing about EAH.
 - `src/lib/domain.ts` — generic constants/types (invoice statuses, money
   formatting). No client values.
@@ -105,7 +111,16 @@ place** so this can be reused for a future client without touching app code:
   supports selecting several approved invoices and marking them all paid
   together with one method/date — the weekly Thursday-batch case — while
   still allowing a one-off custom amount per invoice via the existing
-  per-invoice form.
+  per-invoice form. Each ready-to-pay invoice also has a "which Friday"
+  dropdown (`ScheduleDropdown`, backed by `Invoice.scheduledPaymentDate`) —
+  EAH pays every Thursday but funds land/process Friday morning, so that's
+  how the team actually talks about a payment batch.
+- `src/app/admin/vendors/` — vendor list, create, and edit (admin-only).
+  Vendor is a first-class entity (`Vendor.name` unique), not a free-text
+  field on Invoice — invoice intake uses a vendor dropdown, matching how
+  Job and CostCode already worked, instead of relying on consistent manual
+  spelling (the real sheet had several vendor-name variants for the same
+  vendor before this).
 - `src/app/admin/invoices/` — the full invoice list (admin-only), every
   status, searchable by vendor/job name and filterable by status, no row
   cap (unlike the 20-row "History" section on the Overview tab).
