@@ -106,6 +106,9 @@ place** so this can be reused for a future client without touching app code:
   together with one method/date — the weekly Thursday-batch case — while
   still allowing a one-off custom amount per invoice via the existing
   per-invoice form.
+- `src/app/admin/invoices/` — the full invoice list (admin-only), every
+  status, searchable by vendor/job name and filterable by status, no row
+  cap (unlike the 20-row "History" section on the Overview tab).
 - `src/app/admin/invoices/new/` — invoice intake form (admin-only; see below).
 - `src/app/admin/jobs/` — job list, create, and edit (admin-only). Editing a
   job's superintendent immediately re-routes any of its pending/flagged
