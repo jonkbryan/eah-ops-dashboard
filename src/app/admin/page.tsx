@@ -7,21 +7,39 @@ import { InvoiceDecisionCard } from "@/components/invoice-decision-card";
 import { PaymentBatchSection } from "@/components/admin/payment-batch-section";
 import { AdminTabs } from "@/components/admin/admin-tabs";
 
-export default async function AdminPage() {
+const SORT_OPTIONS = {
+  oldest: { createdAt: "asc" as const },
+  newest: { createdAt: "desc" as const },
+  amount_desc: { amountCents: "desc" as const },
+  amount_asc: { amountCents: "asc" as const },
+};
+type SortKey = keyof typeof SORT_OPTIONS;
+
+export default async function AdminPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ job?: string; sort?: string }>;
+}) {
   const session = await auth();
   if (!session?.user) redirect("/login");
   if (!session.user.isAdmin) redirect("/");
 
-  const [readyToPay, needsDecision, history] = await Promise.all([
+  const { job: jobFilter, sort } = await searchParams;
+  const sortKey: SortKey = sort && sort in SORT_OPTIONS ? (sort as SortKey) : "oldest";
+
+  const [readyToPay, needsDecision, history, jobs] = await Promise.all([
     db.invoice.findMany({
       where: { status: "approved" },
       include: { job: true, costCode: true, vendor: true },
       orderBy: { decidedAt: "asc" },
     }),
     db.invoice.findMany({
-      where: { status: { in: ["pending", "flagged"] } },
+      where: {
+        status: { in: ["pending", "flagged"] },
+        ...(jobFilter ? { jobId: jobFilter } : {}),
+      },
       include: { job: true, costCode: true, vendor: true },
-      orderBy: { createdAt: "asc" },
+      orderBy: SORT_OPTIONS[sortKey],
     }),
     db.invoice.findMany({
       where: { status: { in: ["rejected", "paid"] } },
@@ -29,6 +47,7 @@ export default async function AdminPage() {
       orderBy: { updatedAt: "desc" },
       take: 20,
     }),
+    db.job.findMany({ orderBy: { name: "asc" } }),
   ]);
 
   return (
@@ -72,6 +91,38 @@ export default async function AdminPage() {
         <h2 className="text-sm font-medium text-gray-500 uppercase tracking-wide">
           Needs Decision — All Jobs ({needsDecision.length})
         </h2>
+
+        <form method="GET" className="flex flex-col sm:flex-row gap-2">
+          <select
+            name="job"
+            defaultValue={jobFilter ?? ""}
+            className="flex-1 rounded-lg border border-gray-300 px-3 py-2.5 text-base focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="">All jobs</option>
+            {jobs.map((job) => (
+              <option key={job.id} value={job.id}>
+                {job.name}
+              </option>
+            ))}
+          </select>
+          <select
+            name="sort"
+            defaultValue={sortKey}
+            className="rounded-lg border border-gray-300 px-3 py-2.5 text-base focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="oldest">Oldest first</option>
+            <option value="newest">Newest first</option>
+            <option value="amount_desc">Largest amount</option>
+            <option value="amount_asc">Smallest amount</option>
+          </select>
+          <button
+            type="submit"
+            className="shrink-0 rounded-lg bg-gray-900 text-white font-medium px-4 py-2.5 text-sm"
+          >
+            Apply
+          </button>
+        </form>
+
         {needsDecision.length === 0 ? (
           <p className="text-sm text-gray-500 bg-white rounded-2xl border border-gray-200 p-6 text-center">
             Nothing pending or flagged right now.
@@ -88,6 +139,7 @@ export default async function AdminPage() {
                 jobName={invoice.job.name}
                 intakeNote={invoice.note}
                 attachmentUrl={invoice.attachmentUrl}
+                status={invoice.status}
                 showJobName
               />
             ))}

@@ -11,14 +11,14 @@ export default async function SuperintendentQueuePage() {
 
   const userId = session.user.id;
 
-  const [queue, recent] = await Promise.all([
+  const [queueRaw, recent] = await Promise.all([
     db.invoice.findMany({
       where: {
         status: { in: ["pending", "flagged"] },
         job: { superintendentId: userId },
       },
       include: { job: true, costCode: true, vendor: true },
-      orderBy: { createdAt: "asc" },
+      orderBy: [{ status: "asc" }, { createdAt: "asc" }],
     }),
     db.invoice.findMany({
       where: {
@@ -31,6 +31,17 @@ export default async function SuperintendentQueuePage() {
     }),
   ]);
 
+  const byJob = new Map<string, typeof queueRaw>();
+  for (const invoice of queueRaw) {
+    const list = byJob.get(invoice.job.name);
+    if (list) {
+      list.push(invoice);
+    } else {
+      byJob.set(invoice.job.name, [invoice]);
+    }
+  }
+  const jobGroups = [...byJob.entries()].sort(([a], [b]) => a.localeCompare(b));
+
   return (
     <main className="mx-auto max-w-3xl px-4 py-6 space-y-8">
       <div>
@@ -40,23 +51,31 @@ export default async function SuperintendentQueuePage() {
         </p>
       </div>
 
-      {queue.length === 0 ? (
+      {queueRaw.length === 0 ? (
         <p className="text-sm text-gray-500 bg-white rounded-2xl border border-gray-200 p-6 text-center">
           Nothing needs your attention right now.
         </p>
       ) : (
-        <div className="space-y-3">
-          {queue.map((invoice) => (
-            <InvoiceDecisionCard
-              key={invoice.id}
-              invoiceId={invoice.id}
-              vendorName={invoice.vendor.name}
-              amountCents={invoice.amountCents}
-              costCodeLabel={invoice.costCode.label}
-              jobName={invoice.job.name}
-              intakeNote={invoice.note}
-              attachmentUrl={invoice.attachmentUrl}
-            />
+        <div className="space-y-6">
+          {jobGroups.map(([jobName, invoices]) => (
+            <div key={jobName} className="space-y-3">
+              <h2 className="text-sm font-medium text-gray-500 uppercase tracking-wide">
+                {jobName} ({invoices.length})
+              </h2>
+              {invoices.map((invoice) => (
+                <InvoiceDecisionCard
+                  key={invoice.id}
+                  invoiceId={invoice.id}
+                  vendorName={invoice.vendor.name}
+                  amountCents={invoice.amountCents}
+                  costCodeLabel={invoice.costCode.label}
+                  jobName={invoice.job.name}
+                  intakeNote={invoice.note}
+                  attachmentUrl={invoice.attachmentUrl}
+                  status={invoice.status}
+                />
+              ))}
+            </div>
           ))}
         </div>
       )}

@@ -14,6 +14,7 @@ type Props = {
   intakeNote: string | null;
   attachmentUrl?: string | null;
   showJobName?: boolean;
+  status?: string;
 };
 
 export function InvoiceDecisionCard({
@@ -25,6 +26,7 @@ export function InvoiceDecisionCard({
   intakeNote,
   attachmentUrl,
   showJobName = false,
+  status,
 }: Props) {
   const [note, setNote] = useState("");
   const [pending, startTransition] = useTransition();
@@ -60,7 +62,14 @@ export function InvoiceDecisionCard({
     <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4 space-y-3">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="font-semibold text-gray-900 truncate">{vendorName}</p>
+          <div className="flex items-center gap-2">
+            <p className="font-semibold text-gray-900 truncate">{vendorName}</p>
+            {status === "flagged" && (
+              <span className="shrink-0 text-xs font-medium text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full">
+                Flagged
+              </span>
+            )}
+          </div>
           <p className="text-sm text-gray-500 truncate">
             {costCodeLabel}
             {showJobName ? ` · ${jobName}` : ""}
