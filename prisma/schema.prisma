@@ -104,9 +104,30 @@ model Payment {
   paidAt       DateTime @default(now())
   recordedById String
   createdAt    DateTime @default(now())
+  // Set once an admin confirms this payment against a QuickBooks Purchase
+  // transaction (see /admin/reconcile). This is the sole source of truth for
+  // "already reconciled" — unlike the old Make.com scenarios, which tracked
+  // match state in two different unsynchronized sheet columns and could
+  // re-match/overwrite the same row twice in the same run.
+  quickbooksTransactionId String? @unique
 
   invoice    Invoice @relation(fields: [invoiceId], references: [id])
   recordedBy User    @relation("PaymentRecordedBy", fields: [recordedById], references: [id])
 
   @@index([invoiceId])
+}
+
+// Single-row table: this app instance connects to exactly one QuickBooks
+// company (Elijah Anthony Homes). OAuth2 authorization-code flow — see
+// src/lib/quickbooks.ts. Access tokens are short-lived (1hr) and rotate on
+// every refresh, so both token fields get overwritten on each refresh.
+model QuickBooksConnection {
+  id                    String   @id @default(cuid())
+  realmId               String
+  accessToken           String
+  refreshToken          String
+  accessTokenExpiresAt  DateTime
+  refreshTokenExpiresAt DateTime
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
 }

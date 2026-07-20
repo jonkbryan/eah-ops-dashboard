@@ -210,10 +210,39 @@ It does **not** create jobs or cost codes on the fly — an unmatched name
 fails loudly rather than silently creating bad data, so a typo (or a new
 job EAH hasn't added yet) surfaces immediately instead of getting buried.
 
+## QuickBooks reconciliation: `/admin/reconcile`
+
+Matches recorded `Payment`s against real QuickBooks **Purchase** transactions
+(checks/card charges/cash expenses — EAH pays vendors this way, not via
+Bills). This is a deliberate rebuild of two real, currently-live Make.com
+scenarios (`EAH - QuickBooks to Invoice Log Sync`, `EAH QB Payment Matcher`)
+that were found to be genuinely fragile: they raced each other on the same
+sheet rows using two different, unsynchronized status columns, used a
+hardcoded ~28-job alias table that silently dropped unmapped jobs, and had
+zero visibility into non-matches. This feature fixes all three:
+
+- **Single source of truth for "already reconciled"**: one field,
+  `Payment.quickbooksTransactionId`, set only when an admin confirms a
+  match. No race between competing writers.
+- **Nothing is silently dropped.** Every payment and every relevant
+  QuickBooks transaction shows up in one of four buckets: Auto-Matched
+  (single unambiguous candidate — one click to confirm), Needs Review
+  (multiple candidates — admin picks), Unmatched Payments (recorded paid in
+  the app, no matching QB transaction found), and Unmatched QuickBooks
+  Transactions (a known vendor's transaction with no corresponding payment
+  — e.g. paid outside this workflow, or an invoice never logged).
+- **Read-only against QuickBooks.** This never writes anything back to the
+  company's books.
+
+Setup: register an app at developer.intuit.com (Production keys, redirect
+URI `${APP_BASE_URL}/api/quickbooks/callback`), set `QUICKBOOKS_CLIENT_ID`
+and `QUICKBOOKS_CLIENT_SECRET` in `.env`, then click "Connect QuickBooks"
+from `/admin/reconcile` (admin-only) to run the OAuth flow — see
+`src/lib/quickbooks.ts`.
+
 ## Known limitations (intentionally out of scope for v1)
 
 - **No budget-vs-actual reporting or full dashboard.**
-- **No QuickBooks integration.**
 - **No self-service "forgot password" link on the login page itself** — a
   locked-out user has to ask an admin to reset their password from
   `/admin/users/[id]/edit` (see Logging In above). There's no automated
