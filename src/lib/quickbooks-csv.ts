@@ -119,7 +119,26 @@ export function parseQuickBooksTransactionCsv(csvText: string): QuickBooksPurcha
     throw new CsvFormatError("The file appears to be empty or has no data rows.");
   }
 
-  const [headerRow, ...dataRows] = rows;
+  // QuickBooks report exports lead with a few title rows (company name,
+  // report name, date range) before the actual column header — scan for
+  // the first row that actually resolves as a header rather than assuming
+  // row 1 is it.
+  const headerRowIndex = rows.findIndex((row) => {
+    try {
+      resolveColumns(row);
+      return true;
+    } catch {
+      return false;
+    }
+  });
+  if (headerRowIndex === -1) {
+    throw new CsvFormatError(
+      "Couldn't find a header row with Date/Name/Amount columns anywhere in this file."
+    );
+  }
+
+  const headerRow = rows[headerRowIndex];
+  const dataRows = rows.slice(headerRowIndex + 1);
   const columns = resolveColumns(headerRow);
 
   const purchases: QuickBooksPurchase[] = [];
