@@ -17,7 +17,7 @@ a Google Sheets + Make.com workflow.
 ## Stack
 
 - **Next.js 16** (App Router, TypeScript, Tailwind CSS)
-- **SQLite** via **Prisma 7** (local file database, no server to run)
+- **Postgres** via **Prisma 7** (hosted, e.g. Vercel Postgres/Neon)
 - **Auth.js (NextAuth v5)** with email/password (Credentials provider) —
   accounts are pre-created via the seed script, there is no public sign-up
 
@@ -38,8 +38,9 @@ Open `.env` and generate a session secret:
 node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
 ```
 
-Paste the output as the value of `AUTH_SECRET` in `.env`. Leave
-`DATABASE_URL` as-is (`file:./dev.db`) unless you have a reason to change it.
+Paste the output as the value of `AUTH_SECRET` in `.env`. Set `DATABASE_URL`
+to a real Postgres connection string (e.g. from Vercel Postgres/Neon) — there
+is no local file-database fallback.
 
 Create the database and load EAH's real data (users, cost codes, all 35
 jobs, all 19 vendors, and the full historical invoice log pulled from the
@@ -274,16 +275,25 @@ company) — register at developer.intuit.com, set `QUICKBOOKS_CLIENT_ID`/
   paid there's no UI to reverse it (avoids leaving an orphaned Payment
   record). If this comes up in practice, it's a small follow-up feature.
 
-## Notes on the Prisma 7 / SQLite setup
+## Notes on the Prisma 7 / Postgres setup
 
 This project uses Prisma 7's new TypeScript-based client generator, which
 requires an explicit **driver adapter** rather than reading `DATABASE_URL`
-implicitly — `src/lib/db.ts` and `prisma/seed.ts` both construct
-`PrismaBetterSqlite3` from `@prisma/adapter-better-sqlite3` explicitly. If
-you ever see an error like `PrismaClient needs to be constructed with a
-non-empty, valid PrismaClientOptions`, it means somewhere is calling
-`new PrismaClient()` without that adapter.
+implicitly — `src/lib/db.ts` and `prisma/seed.ts` both construct `PrismaPg`
+from `@prisma/adapter-pg` explicitly. If you ever see an error like
+`PrismaClient needs to be constructed with a non-empty, valid
+PrismaClientOptions`, it means somewhere is calling `new PrismaClient()`
+without that adapter.
 
 Auth session checks happen in each server component/action (`auth()` +
-`redirect()`), not in Next.js middleware — Prisma's SQLite driver can't run
-in Next's Edge Runtime, which is where middleware executes.
+`redirect()`), not in Next.js middleware — the `pg` driver can't run in
+Next's Edge Runtime, which is where middleware executes.
+
+**Was SQLite, migrated to Postgres for deployment.** The app ran on local
+SQLite (`better-sqlite3`) through most of development; it was switched to
+Postgres (`@prisma/adapter-pg`) specifically to deploy to Vercel, since
+serverless functions can't rely on a local file for persistent storage.
+`prisma/migrations/` was reset to a single fresh baseline at that point —
+the SQLite-era migration SQL isn't valid Postgres syntax, so there was no
+reason to carry it forward for a database with no existing production data
+to preserve.

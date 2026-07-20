@@ -31,8 +31,8 @@ export default async function AllInvoicesPage({
       ...(search
         ? {
             OR: [
-              { vendor: { name: { contains: search } } },
-              { job: { name: { contains: search } } },
+              { vendor: { name: { contains: search, mode: "insensitive" } } },
+              { job: { name: { contains: search, mode: "insensitive" } } },
             ],
           }
         : {}),
