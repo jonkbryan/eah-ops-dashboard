@@ -2,31 +2,23 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { formatCents } from "@/lib/domain";
-import { isQuickBooksConnected } from "@/lib/quickbooks";
-import { buildReconciliationReport } from "@/lib/quickbooks-matching";
+import { getLatestQuickBooksImport } from "@/lib/quickbooks-import";
+import { buildReconciliationReport, type ReconciliationReport } from "@/lib/quickbooks-matching";
 import { AdminTabs } from "@/components/admin/admin-tabs";
+import { QuickBooksCsvUploadForm } from "@/components/admin/quickbooks-csv-upload-form";
 import { AutoMatchedRow, NeedsReviewRow } from "@/components/admin/reconcile-sections";
 
-const LOOKBACK_DAYS = 90;
-
-const ERROR_MESSAGES: Record<string, string> = {
-  missing_code: "QuickBooks didn't return an authorization code. Try connecting again.",
-  state_mismatch: "That connection attempt looked stale or tampered with. Try connecting again.",
-  token_exchange_failed:
-    "QuickBooks rejected the connection request — check the Client ID/Secret in .env.",
-};
-
-export default async function ReconcilePage({
-  searchParams,
-}: {
-  searchParams: Promise<{ connected?: string; error?: string }>;
-}) {
+export default async function ReconcilePage() {
   const session = await auth();
   if (!session?.user) redirect("/login");
   if (!session.user.isAdmin) redirect("/");
 
-  const { connected, error } = await searchParams;
-  const isConnected = await isQuickBooksConnected();
+  const latestImport = await getLatestQuickBooksImport();
+
+  let report: ReconciliationReport | null = null;
+  if (latestImport) {
+    report = await buildReconciliationReport(latestImport.purchases);
+  }
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-6 space-y-6">
@@ -40,54 +32,30 @@ export default async function ReconcilePage({
         <AdminTabs active="reconcile" />
       </div>
 
-      {connected === "1" && (
-        <p className="text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2">
-          QuickBooks connected.
-        </p>
-      )}
-      {error && (
-        <p className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
-          {ERROR_MESSAGES[error] ?? "Something went wrong connecting QuickBooks."}
+      <QuickBooksCsvUploadForm />
+
+      {latestImport && (
+        <p className="text-xs text-gray-500">
+          Last uploaded {latestImport.createdAt.toLocaleString()} —{" "}
+          {latestImport.rowCount} relevant transaction(s).{" "}
+          <Link href="/api/quickbooks/connect" className="underline hover:text-gray-700">
+            Prefer a live sync instead?
+          </Link>
         </p>
       )}
 
-      {!isConnected ? (
-        <div className="bg-white rounded-2xl border border-gray-200 p-6 text-center space-y-3">
-          <p className="text-sm text-gray-600">
-            Connect QuickBooks to match recorded payments against real transactions.
-          </p>
-          <Link
-            href="/api/quickbooks/connect"
-            className="inline-block rounded-lg bg-blue-600 text-white font-medium px-4 py-2.5 text-sm active:bg-blue-700"
-          >
-            Connect QuickBooks
-          </Link>
-        </div>
+      {!report ? (
+        <p className="text-sm text-gray-500 bg-white rounded-2xl border border-gray-200 p-6 text-center">
+          Upload a QuickBooks CSV export to see the reconciliation report.
+        </p>
       ) : (
-        <ReconcileReport />
+        <ReconcileReportView report={report} />
       )}
     </main>
   );
 }
 
-function lookbackDate(days: number): string {
-  return new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-}
-
-async function ReconcileReport() {
-  const sinceDate = lookbackDate(LOOKBACK_DAYS);
-
-  let report;
-  try {
-    report = await buildReconciliationReport(sinceDate);
-  } catch (err) {
-    return (
-      <p className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
-        {err instanceof Error ? err.message : "Failed to load QuickBooks transactions."}
-      </p>
-    );
-  }
-
+function ReconcileReportView({ report }: { report: ReconciliationReport }) {
   return (
     <div className="space-y-8">
       <section className="space-y-3">
@@ -129,8 +97,7 @@ async function ReconcileReport() {
           Unmatched Payments ({report.unmatchedPayments.length})
         </h2>
         <p className="text-xs text-gray-500">
-          Recorded as paid in the app, but no matching QuickBooks transaction was found in the
-          last {LOOKBACK_DAYS} days.
+          Recorded as paid in the app, but no matching transaction was found in the upload.
         </p>
         {report.unmatchedPayments.length === 0 ? (
           <p className="text-sm text-gray-500 bg-white rounded-2xl border border-gray-200 p-6 text-center">
@@ -162,8 +129,9 @@ async function ReconcileReport() {
           Unmatched QuickBooks Transactions ({report.unmatchedPurchases.length})
         </h2>
         <p className="text-xs text-gray-500">
-          Transactions from known vendors that don&apos;t correspond to any payment recorded in
-          the app — possibly a payment made outside this workflow, or an invoice not yet logged.
+          Transactions from known vendors in the upload that don&apos;t correspond to any payment
+          recorded in the app — possibly a payment made outside this workflow, or an invoice not
+          yet logged.
         </p>
         {report.unmatchedPurchases.length === 0 ? (
           <p className="text-sm text-gray-500 bg-white rounded-2xl border border-gray-200 p-6 text-center">

@@ -28,9 +28,10 @@ model User {
   isAdmin          Boolean  @default(false)
   createdAt        DateTime @default(now())
 
-  jobsSupervised   Job[]     @relation("JobSuperintendent")
-  invoiceDecisions Invoice[] @relation("InvoiceDecidedBy")
-  paymentsRecorded Payment[] @relation("PaymentRecordedBy")
+  jobsSupervised    Job[]              @relation("JobSuperintendent")
+  invoiceDecisions  Invoice[]          @relation("InvoiceDecidedBy")
+  paymentsRecorded  Payment[]          @relation("PaymentRecordedBy")
+  quickbooksImports QuickBooksImport[]
 }
 
 model Job {
@@ -130,4 +131,20 @@ model QuickBooksConnection {
   refreshTokenExpiresAt DateTime
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
+}
+
+// Single-row table holding the most recently uploaded QuickBooks CSV
+// export (Reports -> Transaction List), used as the reconciliation data
+// source while live API access is deferred. Replaced wholesale on each
+// upload — Jon re-exports a fresh "complete download" each time rather
+// than uploading incrementally. purchasesJson is a JSON-serialized
+// QuickBooksPurchase[] (see src/lib/quickbooks.ts).
+model QuickBooksImport {
+  id             String   @id @default(cuid())
+  uploadedById   String
+  purchasesJson  String
+  rowCount       Int
+  createdAt      DateTime @default(now())
+
+  uploadedBy User @relation(fields: [uploadedById], references: [id])
 }

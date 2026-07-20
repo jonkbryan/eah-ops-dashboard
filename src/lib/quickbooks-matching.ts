@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { fetchRecentPurchases, type QuickBooksPurchase } from "@/lib/quickbooks";
+import type { QuickBooksPurchase } from "@/lib/quickbooks";
 
 export type UnmatchedPayment = {
   id: string;
@@ -29,14 +29,15 @@ function normalize(name: string) {
 // dropped, and confirming a match writes exactly one field
 // (Payment.quickbooksTransactionId) as the single source of "already
 // reconciled" truth.
-export async function buildReconciliationReport(sinceDate: string): Promise<ReconciliationReport> {
-  const [payments, purchases, vendors] = await Promise.all([
+export async function buildReconciliationReport(
+  purchases: QuickBooksPurchase[]
+): Promise<ReconciliationReport> {
+  const [payments, vendors] = await Promise.all([
     db.payment.findMany({
       where: { quickbooksTransactionId: null },
       include: { invoice: { include: { vendor: true, job: true } } },
       orderBy: { paidAt: "asc" },
     }),
-    fetchRecentPurchases(sinceDate),
     db.vendor.findMany(),
   ]);
 

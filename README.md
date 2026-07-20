@@ -234,11 +234,28 @@ zero visibility into non-matches. This feature fixes all three:
 - **Read-only against QuickBooks.** This never writes anything back to the
   company's books.
 
-Setup: register an app at developer.intuit.com (Production keys, redirect
-URI `${APP_BASE_URL}/api/quickbooks/callback`), set `QUICKBOOKS_CLIENT_ID`
-and `QUICKBOOKS_CLIENT_SECRET` in `.env`, then click "Connect QuickBooks"
-from `/admin/reconcile` (admin-only) to run the OAuth flow — see
-`src/lib/quickbooks.ts`.
+**Data source: CSV upload today, live API later.** `/admin/reconcile` takes
+a CSV export of QuickBooks' *Transaction List* report (Reports → Transaction
+List). `src/lib/quickbooks-csv.ts` parses it — tolerant of common column
+name variants (`Date`/`Transaction Date`, `Name`/`Payee`/`Vendor`,
+`Amount`/`Total`, etc.), filters to Check/Expense/Credit Card Charge/Cash
+Expense rows, and fails with a specific, diagnosable error (not a guess) if
+it can't find a required column. Each upload replaces the previous one
+wholesale (`QuickBooksImport`, single-row table) — matching logic
+(`src/lib/quickbooks-matching.ts`) works from whichever purchase list it's
+given, so the CSV and live paths share one implementation.
+
+**Live OAuth is built but not the primary path yet.** The full OAuth2
+flow — `QuickBooksConnection` model, token refresh, `/api/quickbooks/
+connect` + `/callback`, `fetchRecentPurchases` in `src/lib/quickbooks.ts` —
+is in place and was verified against Intuit's real authorize endpoint (a
+registered Intuit Developer app accepted the Client ID and redirected to
+QuickBooks' real sign-in page). It's parked for now in favor of the simpler
+CSV flow; swap `buildReconciliationReport`'s input back to
+`fetchRecentPurchases(...)` in `/admin/reconcile/page.tsx` to switch back.
+Needs Production keys (Development/Sandbox keys only connect to a fake test
+company) — register at developer.intuit.com, set `QUICKBOOKS_CLIENT_ID`/
+`QUICKBOOKS_CLIENT_SECRET`/`QUICKBOOKS_ENVIRONMENT` in `.env`.
 
 ## Known limitations (intentionally out of scope for v1)
 
