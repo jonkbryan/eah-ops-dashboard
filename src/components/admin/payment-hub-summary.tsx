@@ -9,12 +9,26 @@ export type PaymentBucket = {
   approvedCount: number;
 };
 
-export function PaymentHubSummary({ buckets }: { buckets: PaymentBucket[] }) {
+export function PaymentHubSummary({
+  buckets,
+  totalCents,
+  totalCount,
+}: {
+  buckets: PaymentBucket[];
+  totalCents: number;
+  totalCount: number;
+}) {
   return (
     <section className="space-y-3">
-      <h2 className="text-sm font-medium text-gray-500 uppercase tracking-wide">
-        Upcoming Payments
-      </h2>
+      <div className="flex items-baseline justify-between gap-3">
+        <h2 className="text-sm font-medium text-gray-500 uppercase tracking-wide">
+          Upcoming Payments
+        </h2>
+        <p className="text-sm text-gray-500">
+          Total Invoices: <span className="font-semibold text-gray-900">{formatCents(totalCents)}</span>{" "}
+          ({totalCount})
+        </p>
+      </div>
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
         {buckets.map((bucket) => {
           const isOverdue = bucket.key === "overdue";

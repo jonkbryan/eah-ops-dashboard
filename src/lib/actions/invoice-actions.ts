@@ -214,6 +214,7 @@ export async function markInvoicePaid(input: {
   amountCents: number;
   method: string;
   paidOn?: string; // yyyy-mm-dd from a <input type="date">
+  reference?: string; // check #, ACH/wire confirmation, or the vendor's invoice #
 }) {
   const user = await requireUser();
 
@@ -238,6 +239,7 @@ export async function markInvoicePaid(input: {
         invoiceId: invoice.id,
         amountCents: input.amountCents,
         method: input.method,
+        reference: input.reference?.trim() || null,
         paidAt: input.paidOn ? new Date(`${input.paidOn}T00:00:00`) : new Date(),
         recordedById: user.id,
       },

@@ -73,6 +73,7 @@ export default async function AdminPage({
     if (invoice.status === "approved") bucket.approvedCount += 1;
   }
   const paymentBuckets = [...bucketMap.values()];
+  const totalInvoicesCents = unpaidForHub.reduce((sum, i) => sum + i.amountCents, 0);
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-6 space-y-8">
@@ -92,7 +93,11 @@ export default async function AdminPage({
         <AdminTabs active="overview" />
       </div>
 
-      <PaymentHubSummary buckets={paymentBuckets} />
+      <PaymentHubSummary
+        buckets={paymentBuckets}
+        totalCents={totalInvoicesCents}
+        totalCount={unpaidForHub.length}
+      />
 
       <section className="space-y-3">
         <h2 className="text-sm font-medium text-gray-500 uppercase tracking-wide">
@@ -191,6 +196,11 @@ export default async function AdminPage({
                   <p className="text-xs text-gray-500 truncate">
                     {invoice.costCode.label} · {invoice.job.name}
                   </p>
+                  {invoice.payments[0]?.reference && (
+                    <p className="text-xs text-gray-400 truncate">
+                      Ref: {invoice.payments[0].reference}
+                    </p>
+                  )}
                 </div>
                 <div className="text-right shrink-0">
                   <p className="text-sm text-gray-900">

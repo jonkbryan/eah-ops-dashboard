@@ -108,6 +108,10 @@ model Payment {
   invoiceId    String
   amountCents  Int
   method       String
+  // Optional free-text reference captured at the point of marking paid — a
+  // check number, ACH/wire confirmation, or the vendor's own invoice number,
+  // whichever is useful to have on record. Not parsed/validated.
+  reference    String?
   paidAt       DateTime @default(now())
   recordedById String
   createdAt    DateTime @default(now())

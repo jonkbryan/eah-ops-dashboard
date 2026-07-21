@@ -2,6 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { InvoiceEditForm } from "@/components/admin/invoice-edit-form";
+import { InvoiceStatusActions } from "@/components/admin/invoice-status-actions";
 
 export default async function EditInvoicePage({
   params,
@@ -37,20 +38,27 @@ export default async function EditInvoicePage({
           Paid invoices can&apos;t be edited.
         </p>
       ) : (
-        <InvoiceEditForm
-          invoiceId={invoice.id}
-          jobs={jobs}
-          costCodes={costCodes}
-          vendors={vendors}
-          initial={{
-            jobId: invoice.jobId,
-            costCodeId: invoice.costCodeId,
-            vendorId: invoice.vendorId,
-            amountCents: invoice.amountCents,
-            note: invoice.note,
-            attachmentUrl: invoice.attachmentUrl,
-          }}
-        />
+        <>
+          <InvoiceStatusActions
+            invoiceId={invoice.id}
+            status={invoice.status}
+            amountCents={invoice.amountCents}
+          />
+          <InvoiceEditForm
+            invoiceId={invoice.id}
+            jobs={jobs}
+            costCodes={costCodes}
+            vendors={vendors}
+            initial={{
+              jobId: invoice.jobId,
+              costCodeId: invoice.costCodeId,
+              vendorId: invoice.vendorId,
+              amountCents: invoice.amountCents,
+              note: invoice.note,
+              attachmentUrl: invoice.attachmentUrl,
+            }}
+          />
+        </>
       )}
     </main>
   );

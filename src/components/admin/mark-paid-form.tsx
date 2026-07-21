@@ -7,13 +7,16 @@ import { dollarsToCents, PAYMENT_METHODS, todayIso } from "@/lib/domain";
 export function MarkPaidForm({
   invoiceId,
   amountCents,
+  onSuccess,
 }: {
   invoiceId: string;
   amountCents: number;
+  onSuccess?: () => void;
 }) {
   const [amount, setAmount] = useState((amountCents / 100).toFixed(2));
   const [method, setMethod] = useState<string>(PAYMENT_METHODS[0]);
   const [paidOn, setPaidOn] = useState(todayIso());
+  const [reference, setReference] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -26,7 +29,8 @@ export function MarkPaidForm({
     }
     startTransition(async () => {
       try {
-        await markInvoicePaid({ invoiceId, amountCents: cents, method, paidOn });
+        await markInvoicePaid({ invoiceId, amountCents: cents, method, paidOn, reference });
+        onSuccess?.();
       } catch (e) {
         setError(e instanceof Error ? e.message : "Something went wrong");
       }
@@ -70,6 +74,17 @@ export function MarkPaidForm({
             className="w-full rounded-lg border border-gray-300 px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
         </div>
+      </div>
+
+      <div>
+        <label className="text-xs text-gray-500">Reference / Invoice # (optional)</label>
+        <input
+          type="text"
+          value={reference}
+          onChange={(e) => setReference(e.target.value)}
+          placeholder="Check #, confirmation #, or vendor invoice #"
+          className="w-full rounded-lg border border-gray-300 px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
       </div>
 
       {error && (
