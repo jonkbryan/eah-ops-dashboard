@@ -100,26 +100,34 @@ export const users: SeedUser[] = [
 // appeared in real invoice data but were missing from that tab: "Rock
 // Materials" (seen as two inconsistent spellings) and "ELO Air Conditioning
 // & Heating".
-export const vendors: string[] = [
-  "Action Gypsum Supply",
-  "BEE Builders Supply, Inc.",
-  "Bomberos Drywall",
-  "Builders FirstSource",
-  "ELO Air Conditioning & Heating",
-  "Facets",
-  "GYPSUM SUPPLY",
-  "JM Dump and Construct",
-  "Jose Arellano",
-  "Moore Supply",
-  "PREFERRED GLASS DFW LLC",
-  "Pure Edge Cleaning Service",
-  "RNC Plumbing LLC",
-  "Rock Materials",
-  "Serrano Brick",
-  "Southern Floors of Texas LLC",
-  "Texas Building Supply",
-  "Top Quality trim",
-  "XVERT Demo & Dirt",
+// Aliases are the alternate names this vendor is confirmed to arrive under
+// from Make.com (its own vendor-normalization logic already merges these)
+// or QuickBooks (observed directly in a real transaction export on
+// 2026-07-20). Matched case-insensitively by /api/invoices/ingest and
+// editable in /admin/vendors — not a hardcoded lookup table, just seeded
+// with what's already confirmed.
+export type SeedVendor = { name: string; aliases?: string[] };
+
+export const vendors: SeedVendor[] = [
+  { name: "Action Gypsum Supply" },
+  { name: "BEE Builders Supply, Inc." },
+  { name: "Bomberos Drywall", aliases: ["Bomberos Construction"] },
+  { name: "Builders FirstSource", aliases: ["Builders First Source"] },
+  { name: "ELO Air Conditioning & Heating", aliases: ["ELO HVAC"] },
+  { name: "Facets" },
+  { name: "GYPSUM SUPPLY" },
+  { name: "JM Dump and Construct" },
+  { name: "Jose Arellano" },
+  { name: "Moore Supply" },
+  { name: "PREFERRED GLASS DFW LLC", aliases: ["Preferred Glass DFW", "Preferred Glass DFW LLC"] },
+  { name: "Pure Edge Cleaning Service", aliases: ["Pure Edge Cleaning Services"] },
+  { name: "RNC Plumbing LLC" },
+  { name: "Rock Materials", aliases: ["Rock Material"] },
+  { name: "Serrano Brick" },
+  { name: "Southern Floors of Texas LLC", aliases: ["Southern Floors"] },
+  { name: "Texas Building Supply", aliases: ["US LBM"] },
+  { name: "Top Quality trim" },
+  { name: "XVERT Demo & Dirt" },
 ];
 
 export type SeedJob = {

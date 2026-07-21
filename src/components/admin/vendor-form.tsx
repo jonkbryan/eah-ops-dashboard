@@ -6,11 +6,12 @@ import { createVendor, updateVendor } from "@/lib/actions/vendor-actions";
 
 type Props =
   | { mode: "create"; vendorId?: undefined; initial?: undefined }
-  | { mode: "edit"; vendorId: string; initial: { name: string } };
+  | { mode: "edit"; vendorId: string; initial: { name: string; aliases: string[] } };
 
 export function VendorForm(props: Props) {
   const router = useRouter();
   const [name, setName] = useState(props.initial?.name ?? "");
+  const [aliases, setAliases] = useState((props.initial?.aliases ?? []).join("\n"));
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -26,9 +27,9 @@ export function VendorForm(props: Props) {
     startTransition(async () => {
       try {
         if (props.mode === "create") {
-          await createVendor({ name });
+          await createVendor({ name, aliases });
         } else {
-          await updateVendor({ vendorId: props.vendorId, name });
+          await updateVendor({ vendorId: props.vendorId, name, aliases });
         }
         router.push("/admin/vendors");
         router.refresh();
@@ -51,6 +52,23 @@ export function VendorForm(props: Props) {
           onChange={(e) => setName(e.target.value)}
           placeholder="e.g. Texas Building Supply"
           className="w-full rounded-lg border border-gray-300 px-3 py-3 text-base focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+      </div>
+
+      <div className="space-y-1">
+        <label className="text-sm font-medium text-gray-700">
+          Other names this vendor comes in as (optional)
+        </label>
+        <p className="text-xs text-gray-500">
+          One per line. Invoices ingested from Make.com/QuickBooks match against these too, not
+          just the name above — case does not matter.
+        </p>
+        <textarea
+          value={aliases}
+          onChange={(e) => setAliases(e.target.value)}
+          rows={3}
+          placeholder={"US LBM\nPreferred Glass DFW"}
+          className="w-full rounded-lg border border-gray-300 px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
       </div>
 

@@ -15,20 +15,25 @@ async function requireAdmin() {
   return session.user;
 }
 
-export async function createVendor(input: { name: string }) {
+function parseAliases(raw: string): string[] {
+  return [...new Set(raw.split("\n").map((a) => a.trim()).filter(Boolean))];
+}
+
+export async function createVendor(input: { name: string; aliases?: string }) {
   await requireAdmin();
 
   const name = input.name.trim();
   if (!name) {
     throw new Error("Vendor name is required");
   }
+  const aliases = parseAliases(input.aliases ?? "");
 
   const existing = await db.vendor.findUnique({ where: { name } });
   if (existing) {
     throw new Error("A vendor with that name already exists");
   }
 
-  const vendor = await db.vendor.create({ data: { name } });
+  const vendor = await db.vendor.create({ data: { name, aliases } });
 
   revalidatePath("/admin/vendors");
   revalidatePath("/admin/invoices/new");
@@ -36,13 +41,14 @@ export async function createVendor(input: { name: string }) {
   return vendor.id;
 }
 
-export async function updateVendor(input: { vendorId: string; name: string }) {
+export async function updateVendor(input: { vendorId: string; name: string; aliases?: string }) {
   await requireAdmin();
 
   const name = input.name.trim();
   if (!name) {
     throw new Error("Vendor name is required");
   }
+  const aliases = parseAliases(input.aliases ?? "");
 
   const vendor = await db.vendor.findUnique({ where: { id: input.vendorId } });
   if (!vendor) {
@@ -56,7 +62,7 @@ export async function updateVendor(input: { vendorId: string; name: string }) {
 
   await db.vendor.update({
     where: { id: input.vendorId },
-    data: { name },
+    data: { name, aliases },
   });
 
   revalidatePath("/admin/vendors");

@@ -44,7 +44,14 @@ export default async function VendorsPage() {
               href={`/admin/vendors/${vendor.id}/edit`}
               className="flex items-center justify-between gap-3 px-4 py-3 hover:bg-gray-50"
             >
-              <p className="text-sm font-medium text-gray-900 truncate">{vendor.name}</p>
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-gray-900 truncate">{vendor.name}</p>
+                {vendor.aliases.length > 0 && (
+                  <p className="text-xs text-gray-400 truncate">
+                    aka {vendor.aliases.join(", ")}
+                  </p>
+                )}
+              </div>
               <p className="text-xs text-gray-500 shrink-0">
                 {vendor._count.invoices} invoice(s)
               </p>

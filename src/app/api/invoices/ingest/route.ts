@@ -3,15 +3,16 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { insertInvoice } from "@/lib/invoice-core";
 import { dollarsToCents } from "@/lib/domain";
+import { findVendorByNameOrAlias } from "@/lib/vendors";
 
 // Machine-to-machine invoice intake (e.g. from a Make.com scenario). Auth is
 // a shared API key, not a user session — see INVOICE_INGEST_API_KEY.
 //
 // Request: POST, JSON body, header `x-api-key: <INVOICE_INGEST_API_KEY>`
 //   {
-//     "vendor": "Texas Building Supply", // must exactly match an existing Vendor name
+//     "vendor": "Texas Building Supply", // matches a Vendor's name OR any of its aliases, case-insensitively
 //     "amount": 3200.00,           // dollars, not cents
-//     "job": "Melody Gates",       // must exactly match an existing Job name
+//     "job": "Melody Gates",       // must exactly match an existing Job name (case-insensitive)
 //     "costCode": "0600",          // must exactly match an existing CostCode code
 //     "note": "optional",
 //     "attachmentUrl": "optional, e.g. a Google Drive link"
@@ -76,9 +77,9 @@ export async function POST(request: NextRequest) {
   }
 
   const [jobRecord, costCodeRecord, vendorRecord] = await Promise.all([
-    db.job.findFirst({ where: { name: job.trim() } }),
+    db.job.findFirst({ where: { name: { equals: job.trim(), mode: "insensitive" } } }),
     db.costCode.findUnique({ where: { code: costCode.trim() } }),
-    db.vendor.findFirst({ where: { name: vendor.trim() } }),
+    findVendorByNameOrAlias(vendor.trim()),
   ]);
 
   if (!jobRecord) {
@@ -95,7 +96,9 @@ export async function POST(request: NextRequest) {
   }
   if (!vendorRecord) {
     return NextResponse.json(
-      { error: `No vendor found named "${vendor.trim()}" — check it matches exactly` },
+      {
+        error: `No vendor found named "${vendor.trim()}" — check it matches a Vendor's name or a registered alias in /admin/vendors`,
+      },
       { status: 400 }
     );
   }

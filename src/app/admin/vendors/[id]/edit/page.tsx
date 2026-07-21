@@ -25,7 +25,11 @@ export default async function EditVendorPage({
         <p className="text-sm text-gray-500">{vendor.name}</p>
       </div>
 
-      <VendorForm mode="edit" vendorId={vendor.id} initial={{ name: vendor.name }} />
+      <VendorForm
+        mode="edit"
+        vendorId={vendor.id}
+        initial={{ name: vendor.name, aliases: vendor.aliases }}
+      />
     </main>
   );
 }

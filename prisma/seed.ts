@@ -50,11 +50,11 @@ async function main() {
   }
 
   console.log("Seeding vendors...");
-  for (const name of vendors) {
+  for (const v of vendors) {
     await db.vendor.upsert({
-      where: { name },
-      update: {},
-      create: { name },
+      where: { name: v.name },
+      update: { aliases: v.aliases ?? [] },
+      create: { name: v.name, aliases: v.aliases ?? [] },
     });
   }
 

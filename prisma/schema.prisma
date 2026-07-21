@@ -57,6 +57,12 @@ model CostCode {
 model Vendor {
   id       String    @id @default(cuid())
   name     String    @unique
+  // Alternate spellings this vendor is known to arrive under (e.g. from
+  // Make.com/QuickBooks) - checked case-insensitively alongside `name`
+  // wherever an external system's vendor text needs to resolve to a
+  // Vendor record. Visible/editable in the admin UI rather than a
+  // hardcoded alias table, so it can be maintained without a code change.
+  aliases  String[]  @default([])
   invoices Invoice[]
 }
 
