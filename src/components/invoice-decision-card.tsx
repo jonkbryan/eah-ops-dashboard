@@ -69,6 +69,11 @@ export function InvoiceDecisionCard({
                 Flagged
               </span>
             )}
+            {status === "rejected" && (
+              <span className="shrink-0 text-xs font-medium text-red-700 bg-red-50 px-2 py-0.5 rounded-full">
+                Rejected
+              </span>
+            )}
           </div>
           <p className="text-sm text-gray-500 truncate">
             {costCodeLabel}

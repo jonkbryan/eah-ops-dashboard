@@ -14,7 +14,7 @@ export default async function SuperintendentQueuePage() {
   const [queueRaw, recent] = await Promise.all([
     db.invoice.findMany({
       where: {
-        status: { in: ["pending", "flagged"] },
+        status: { in: ["pending", "flagged", "rejected"] },
         job: { superintendentId: userId },
       },
       include: { job: true, costCode: true, vendor: true },
@@ -22,7 +22,7 @@ export default async function SuperintendentQueuePage() {
     }),
     db.invoice.findMany({
       where: {
-        status: { in: ["approved", "rejected", "paid"] },
+        status: { in: ["approved", "paid"] },
         job: { superintendentId: userId },
       },
       include: { job: true, costCode: true, vendor: true },

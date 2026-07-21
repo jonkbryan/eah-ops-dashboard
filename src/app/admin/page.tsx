@@ -35,14 +35,14 @@ export default async function AdminPage({
     }),
     db.invoice.findMany({
       where: {
-        status: { in: ["pending", "flagged"] },
+        status: { in: ["pending", "flagged", "rejected"] },
         ...(jobFilter ? { jobId: jobFilter } : {}),
       },
       include: { job: true, costCode: true, vendor: true },
       orderBy: SORT_OPTIONS[sortKey],
     }),
     db.invoice.findMany({
-      where: { status: { in: ["rejected", "paid"] } },
+      where: { status: "paid" },
       include: { job: true, costCode: true, vendor: true, payments: true },
       orderBy: { updatedAt: "desc" },
       take: 20,
@@ -125,7 +125,7 @@ export default async function AdminPage({
 
         {needsDecision.length === 0 ? (
           <p className="text-sm text-gray-500 bg-white rounded-2xl border border-gray-200 p-6 text-center">
-            Nothing pending or flagged right now.
+            Nothing pending, flagged, or rejected right now.
           </p>
         ) : (
           <div className="space-y-3">
@@ -170,11 +170,7 @@ export default async function AdminPage({
                   <p className="text-sm text-gray-900">
                     {formatCents(invoice.amountCents)}
                   </p>
-                  <p
-                    className={`text-xs font-medium capitalize ${
-                      invoice.status === "paid" ? "text-blue-700" : "text-red-700"
-                    }`}
-                  >
+                  <p className="text-xs font-medium capitalize text-blue-700">
                     {invoice.status}
                   </p>
                 </div>
