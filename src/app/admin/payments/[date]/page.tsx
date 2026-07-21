@@ -97,7 +97,10 @@ export default async function PaymentDatePage({
               {jobGroups.map(([jobName, invoices]) => (
                 <div key={jobName} className="space-y-3">
                   <h3 className="text-sm font-medium text-gray-700">
-                    {jobName} ({invoices.length})
+                    {jobName} ({invoices.length}) ·{" "}
+                    {formatCents(
+                      invoices.reduce((sum, invoice) => sum + invoice.amountCents, 0)
+                    )}
                   </h3>
                   {invoices.map((invoice) => (
                     <InvoiceDecisionCard
