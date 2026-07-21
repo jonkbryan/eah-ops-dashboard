@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import {
   markInvoicesPaidBatch,
-  revertApproval,
+  undoWorkCompleted,
   setScheduledPaymentDate,
 } from "@/lib/actions/invoice-actions";
 import { formatCents, PAYMENT_METHODS, todayIso } from "@/lib/domain";
@@ -18,7 +18,7 @@ type ReadyInvoice = {
   jobName: string;
   decisionNote: string | null;
   attachmentUrl: string | null;
-  approvalSignature: string | null;
+  workCompletedSignature: string | null;
   scheduledPaymentDate: Date | null;
 };
 
@@ -70,10 +70,10 @@ function ScheduleDropdown({
   );
 }
 
-// Admin-only reversal of a signed approval, back to Pending. Requires a
-// second click to confirm since it discards a captured signature — not
-// something to fire off a single misclick.
-function UndoApprovalButton({ invoiceId }: { invoiceId: string }) {
+// Admin-only reversal of a signed work-completion sign-off, back to not
+// completed. Requires a second click to confirm since it discards a
+// captured signature — not something to fire off a single misclick.
+function UndoWorkCompletedButton({ invoiceId }: { invoiceId: string }) {
   const [armed, setArmed] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -82,7 +82,7 @@ function UndoApprovalButton({ invoiceId }: { invoiceId: string }) {
     setError(null);
     startTransition(async () => {
       try {
-        await revertApproval(invoiceId);
+        await undoWorkCompleted(invoiceId);
       } catch (e) {
         setError(e instanceof Error ? e.message : "Something went wrong");
         setArmed(false);
@@ -94,7 +94,7 @@ function UndoApprovalButton({ invoiceId }: { invoiceId: string }) {
     <div className="flex items-center gap-2">
       {armed ? (
         <>
-          <span className="text-xs text-gray-500">Send back to Pending?</span>
+          <span className="text-xs text-gray-500">Undo work-completed sign-off?</span>
           <button
             onClick={submit}
             disabled={pending}
@@ -115,7 +115,7 @@ function UndoApprovalButton({ invoiceId }: { invoiceId: string }) {
           onClick={() => setArmed(true)}
           className="text-xs text-gray-400 hover:text-red-700 underline"
         >
-          Undo approval
+          Undo work completed
         </button>
       )}
       {error && <p className="text-xs text-red-700">{error}</p>}
@@ -171,7 +171,7 @@ export function PaymentBatchSection({ invoices }: { invoices: ReadyInvoice[] }) 
   if (invoices.length === 0) {
     return (
       <p className="text-sm text-gray-500 bg-white rounded-2xl border border-gray-200 p-6 text-center">
-        No approved invoices waiting on payment.
+        No invoices ready to pay.
       </p>
     );
   }
@@ -280,13 +280,13 @@ export function PaymentBatchSection({ invoices }: { invoices: ReadyInvoice[] }) 
                 ) : (
                   <span />
                 )}
-                {invoice.approvalSignature && (
+                {invoice.workCompletedSignature && (
                   <div className="flex items-center gap-2">
-                    <span className="text-xs text-gray-400">Approved by signature</span>
+                    <span className="text-xs text-gray-400">Work completed — signed off</span>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
-                      src={invoice.approvalSignature}
-                      alt="Approval signature"
+                      src={invoice.workCompletedSignature}
+                      alt="Work-completed signature"
                       className="h-8 border border-gray-200 rounded bg-white"
                     />
                   </div>
@@ -298,7 +298,7 @@ export function PaymentBatchSection({ invoices }: { invoices: ReadyInvoice[] }) 
               />
               <MarkPaidForm invoiceId={invoice.id} amountCents={invoice.amountCents} />
               <div className="flex justify-end">
-                <UndoApprovalButton invoiceId={invoice.id} />
+                <UndoWorkCompletedButton invoiceId={invoice.id} />
               </div>
             </div>
           </div>

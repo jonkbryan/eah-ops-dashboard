@@ -136,6 +136,10 @@ async function main() {
         vendorId: vendor.id,
         amountCents: inv.amountCents,
         status: inv.status,
+        // Historical "paid" imports never went through a real sign-off, but
+        // they're clearly done — mark them work-completed too so they're
+        // internally consistent with the markInvoicePaid guard.
+        workCompleted: inv.status === "paid",
         note: inv.note,
         attachmentUrl: inv.invoiceLink,
         createdAt: new Date(`${inv.createdDate}T00:00:00`),

@@ -31,13 +31,14 @@ export default async function AdminPage({
 
   const [readyToPay, needsDecision, history, jobs, unpaidForHub] = await Promise.all([
     db.invoice.findMany({
-      where: { status: "approved" },
+      where: { status: "unpaid", workCompleted: true },
       include: { job: true, costCode: true, vendor: true },
-      orderBy: { decidedAt: "asc" },
+      orderBy: { workCompletedAt: "asc" },
     }),
     db.invoice.findMany({
       where: {
-        status: { in: ["pending", "flagged", "rejected"] },
+        status: { in: ["unpaid", "on_hold"] },
+        OR: [{ workCompleted: false }, { status: "on_hold" }],
         ...(jobFilter ? { jobId: jobFilter } : {}),
       },
       include: { job: true, costCode: true, vendor: true },
@@ -52,7 +53,13 @@ export default async function AdminPage({
     db.job.findMany({ orderBy: { name: "asc" } }),
     db.invoice.findMany({
       where: { status: { not: "paid" } },
-      select: { amountCents: true, status: true, scheduledPaymentDate: true, createdAt: true },
+      select: {
+        amountCents: true,
+        status: true,
+        workCompleted: true,
+        scheduledPaymentDate: true,
+        createdAt: true,
+      },
     }),
   ]);
 
@@ -60,7 +67,7 @@ export default async function AdminPage({
   const bucketMap = new Map<string, PaymentBucket>(
     ["overdue", ...upcomingFridays].map((key) => [
       key,
-      { key, totalCents: 0, count: 0, approvedCount: 0 },
+      { key, totalCents: 0, count: 0, workCompletedCount: 0 },
     ])
   );
   for (const invoice of unpaidForHub) {
@@ -70,7 +77,7 @@ export default async function AdminPage({
     if (!bucket) continue; // scheduled further out than the 4-week window
     bucket.totalCents += invoice.amountCents;
     bucket.count += 1;
-    if (invoice.status === "approved") bucket.approvedCount += 1;
+    if (invoice.workCompleted) bucket.workCompletedCount += 1;
   }
   const paymentBuckets = [...bucketMap.values()];
   const totalInvoicesCents = unpaidForHub.reduce((sum, i) => sum + i.amountCents, 0);
@@ -112,7 +119,7 @@ export default async function AdminPage({
             jobName: invoice.job.name,
             decisionNote: invoice.decisionNote,
             attachmentUrl: invoice.attachmentUrl,
-            approvalSignature: invoice.approvalSignature,
+            workCompletedSignature: invoice.workCompletedSignature,
             scheduledPaymentDate: invoice.scheduledPaymentDate,
           }))}
         />
@@ -156,7 +163,7 @@ export default async function AdminPage({
 
         {needsDecision.length === 0 ? (
           <p className="text-sm text-gray-500 bg-white rounded-2xl border border-gray-200 p-6 text-center">
-            Nothing pending, flagged, or rejected right now.
+            Nothing needs attention right now.
           </p>
         ) : (
           <div className="space-y-3">
@@ -171,6 +178,7 @@ export default async function AdminPage({
                 intakeNote={invoice.note}
                 attachmentUrl={invoice.attachmentUrl}
                 status={invoice.status}
+                workCompleted={invoice.workCompleted}
                 showJobName
               />
             ))}

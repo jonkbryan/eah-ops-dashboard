@@ -30,7 +30,6 @@ export default async function EditInvoicePage({
     <main className="mx-auto max-w-3xl px-4 py-6 space-y-6">
       <div>
         <h1 className="text-xl font-semibold text-gray-900">Edit Invoice</h1>
-        <p className="text-sm text-gray-500 capitalize">Status: {invoice.status}</p>
       </div>
 
       {invoice.status === "paid" ? (
@@ -43,6 +42,13 @@ export default async function EditInvoicePage({
             invoiceId={invoice.id}
             status={invoice.status}
             amountCents={invoice.amountCents}
+            workCompleted={invoice.workCompleted}
+            workCompletedSignature={invoice.workCompletedSignature}
+            workCompletedDate={
+              invoice.workCompletedDate
+                ? invoice.workCompletedDate.toISOString().slice(0, 10)
+                : null
+            }
           />
           <InvoiceEditForm
             invoiceId={invoice.id}

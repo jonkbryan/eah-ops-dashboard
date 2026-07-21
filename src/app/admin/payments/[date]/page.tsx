@@ -32,8 +32,12 @@ export default async function PaymentDatePage({
     return date === "overdue" ? due < upcomingFridays[0] : due === date;
   });
 
-  const approved = matching.filter((invoice) => invoice.status === "approved");
-  const needsDecision = matching.filter((invoice) => invoice.status !== "approved");
+  const readyToPay = matching.filter(
+    (invoice) => invoice.status === "unpaid" && invoice.workCompleted
+  );
+  const needsDecision = matching.filter(
+    (invoice) => !(invoice.status === "unpaid" && invoice.workCompleted)
+  );
 
   const byJob = new Map<string, typeof needsDecision>();
   for (const invoice of needsDecision) {
@@ -68,13 +72,13 @@ export default async function PaymentDatePage({
         </p>
       ) : (
         <>
-          {approved.length > 0 && (
+          {readyToPay.length > 0 && (
             <section className="space-y-3">
               <h2 className="text-sm font-medium text-gray-500 uppercase tracking-wide">
-                Ready to Pay ({approved.length})
+                Ready to Pay ({readyToPay.length})
               </h2>
               <PaymentBatchSection
-                invoices={approved.map((invoice) => ({
+                invoices={readyToPay.map((invoice) => ({
                   id: invoice.id,
                   vendorName: invoice.vendor.name,
                   amountCents: invoice.amountCents,
@@ -82,7 +86,7 @@ export default async function PaymentDatePage({
                   jobName: invoice.job.name,
                   decisionNote: invoice.decisionNote,
                   attachmentUrl: invoice.attachmentUrl,
-                  approvalSignature: invoice.approvalSignature,
+                  workCompletedSignature: invoice.workCompletedSignature,
                   scheduledPaymentDate: invoice.scheduledPaymentDate,
                 }))}
               />
@@ -113,6 +117,7 @@ export default async function PaymentDatePage({
                       intakeNote={invoice.note}
                       attachmentUrl={invoice.attachmentUrl}
                       status={invoice.status}
+                      workCompleted={invoice.workCompleted}
                     />
                   ))}
                 </div>

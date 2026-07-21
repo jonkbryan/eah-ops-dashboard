@@ -6,7 +6,7 @@ export type PaymentBucket = {
   key: string; // "overdue" or an ISO Friday date
   totalCents: number;
   count: number;
-  approvedCount: number;
+  workCompletedCount: number;
 };
 
 export function PaymentHubSummary({
@@ -56,7 +56,7 @@ export function PaymentHubSummary({
               </p>
               <p className="text-xs text-gray-500">
                 {bucket.count} invoice{bucket.count === 1 ? "" : "s"}
-                {bucket.count > 0 && ` · ${bucket.approvedCount} approved`}
+                {bucket.count > 0 && ` · ${bucket.workCompletedCount} completed`}
               </p>
             </Link>
           );

@@ -30,6 +30,7 @@ model User {
 
   jobsSupervised    Job[]              @relation("JobSuperintendent")
   invoiceDecisions  Invoice[]          @relation("InvoiceDecidedBy")
+  invoiceCompletions Invoice[]         @relation("InvoiceWorkCompletedBy")
   paymentsRecorded  Payment[]          @relation("PaymentRecordedBy")
   quickbooksImports QuickBooksImport[]
 }
@@ -72,31 +73,45 @@ model Invoice {
   jobId                String
   costCodeId           String
   amountCents          Int
-  // pending -> approved | rejected | flagged -> paid
-  status               String    @default("pending")
+  // unpaid <-> on_hold -> paid. On Hold means something about the invoice
+  // itself needs attention (wrong vendor/amount/etc — fix it via the edit
+  // page, or use it as a general "don't pay yet" hold) — independent of
+  // whether the work is actually done, see workCompleted below. Paid
+  // requires workCompleted = true and status = "unpaid" (not on hold).
+  status               String    @default("unpaid")
   note                 String?
   // Link to the invoice document (e.g. a Google Drive file). Just a URL for
   // now — not a file upload — see prisma/seed-data/eah.ts and the README for
   // why (EAH already has a Drive-based pipeline that owns the actual files).
   attachmentUrl        String?
+  // Free-text reason + who/when for the current status — used when putting
+  // an invoice on hold (or taking it off). Not tied to workCompleted.
   decisionNote         String?
-  // Captured only when a superintendent approves (not on reject/flag) — a
-  // base64 PNG data URL from the on-screen signature pad.
-  approvalSignature    String?
   decidedById          String?
   decidedAt            DateTime?
-  // Which upcoming Friday payment batch this approved invoice is slated
-  // for. Scheduling metadata only — set before the invoice is actually
-  // marked paid, doesn't change status.
+  // Orthogonal to status: has the superintendent (or admin) confirmed the
+  // work itself is actually done? Required before an invoice can be marked
+  // paid. Captured with a signature (same on-screen pad as the old approval
+  // step) plus an optional, user-entered completion date — which may not
+  // match workCompletedAt, the system timestamp of the sign-off action.
+  workCompleted           Boolean   @default(false)
+  workCompletedSignature  String?
+  workCompletedDate       DateTime?
+  workCompletedById       String?
+  workCompletedAt         DateTime?
+  // Which upcoming Friday payment batch this invoice is slated for.
+  // Scheduling metadata only — set before the invoice is actually marked
+  // paid, doesn't change status.
   scheduledPaymentDate DateTime?
   createdAt            DateTime  @default(now())
   updatedAt            DateTime  @updatedAt
 
-  job       Job       @relation(fields: [jobId], references: [id])
-  costCode  CostCode  @relation(fields: [costCodeId], references: [id])
-  vendor    Vendor    @relation(fields: [vendorId], references: [id])
-  decidedBy User?     @relation("InvoiceDecidedBy", fields: [decidedById], references: [id])
-  payments  Payment[]
+  job             Job       @relation(fields: [jobId], references: [id])
+  costCode        CostCode  @relation(fields: [costCodeId], references: [id])
+  vendor          Vendor    @relation(fields: [vendorId], references: [id])
+  decidedBy       User?     @relation("InvoiceDecidedBy", fields: [decidedById], references: [id])
+  workCompletedBy User?     @relation("InvoiceWorkCompletedBy", fields: [workCompletedById], references: [id])
+  payments        Payment[]
 
   @@index([jobId])
   @@index([status])

@@ -6,11 +6,15 @@ import { formatCents, INVOICE_STATUSES } from "@/lib/domain";
 import { AdminTabs } from "@/components/admin/admin-tabs";
 
 const STATUS_STYLES: Record<string, string> = {
-  approved: "text-green-700 bg-green-50",
-  rejected: "text-red-700 bg-red-50",
+  unpaid: "text-gray-600 bg-gray-100",
+  on_hold: "text-amber-700 bg-amber-50",
   paid: "text-blue-700 bg-blue-50",
-  flagged: "text-amber-700 bg-amber-50",
-  pending: "text-gray-600 bg-gray-100",
+};
+
+const STATUS_LABELS: Record<string, string> = {
+  unpaid: "Unpaid",
+  on_hold: "On Hold",
+  paid: "Paid",
 };
 
 export default async function AllInvoicesPage({
@@ -75,7 +79,7 @@ export default async function AllInvoicesPage({
           <option value="all">All statuses</option>
           {INVOICE_STATUSES.map((s) => (
             <option key={s} value={s}>
-              {s[0].toUpperCase() + s.slice(1)}
+              {STATUS_LABELS[s]}
             </option>
           ))}
         </select>
@@ -130,13 +134,20 @@ export default async function AllInvoicesPage({
                   <p className="text-sm text-gray-900">
                     {formatCents(invoice.amountCents)}
                   </p>
-                  <span
-                    className={`text-xs font-medium capitalize px-2 py-0.5 rounded-full ${
-                      STATUS_STYLES[invoice.status] ?? "text-gray-600 bg-gray-100"
-                    }`}
-                  >
-                    {invoice.status}
-                  </span>
+                  <div className="flex items-center gap-1 justify-end">
+                    {invoice.workCompleted && invoice.status !== "paid" && (
+                      <span className="text-xs text-green-700" title="Work completed">
+                        ✓
+                      </span>
+                    )}
+                    <span
+                      className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                        STATUS_STYLES[invoice.status] ?? "text-gray-600 bg-gray-100"
+                      }`}
+                    >
+                      {STATUS_LABELS[invoice.status] ?? invoice.status}
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>

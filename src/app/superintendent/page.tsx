@@ -14,7 +14,8 @@ export default async function SuperintendentQueuePage() {
   const [queueRaw, recent] = await Promise.all([
     db.invoice.findMany({
       where: {
-        status: { in: ["pending", "flagged", "rejected"] },
+        status: { in: ["unpaid", "on_hold"] },
+        OR: [{ workCompleted: false }, { status: "on_hold" }],
         job: { superintendentId: userId },
       },
       include: { job: true, costCode: true, vendor: true },
@@ -22,7 +23,7 @@ export default async function SuperintendentQueuePage() {
     }),
     db.invoice.findMany({
       where: {
-        status: { in: ["approved", "paid"] },
+        OR: [{ workCompleted: true }, { status: "paid" }],
         job: { superintendentId: userId },
       },
       include: { job: true, costCode: true, vendor: true },
@@ -47,7 +48,7 @@ export default async function SuperintendentQueuePage() {
       <div>
         <h1 className="text-xl font-semibold text-gray-900">My Queue</h1>
         <p className="text-sm text-gray-500">
-          Invoices awaiting your approval, {session.user.name}
+          Invoices awaiting your sign-off, {session.user.name}
         </p>
       </div>
 
@@ -73,6 +74,7 @@ export default async function SuperintendentQueuePage() {
                   intakeNote={invoice.note}
                   attachmentUrl={invoice.attachmentUrl}
                   status={invoice.status}
+                  workCompleted={invoice.workCompleted}
                 />
               ))}
             </div>
@@ -83,7 +85,7 @@ export default async function SuperintendentQueuePage() {
       {recent.length > 0 && (
         <div className="space-y-2">
           <h2 className="text-sm font-medium text-gray-500 uppercase tracking-wide">
-            Recently decided
+            Recently signed off
           </h2>
           <div className="bg-white rounded-2xl border border-gray-200 divide-y divide-gray-100">
             {recent.map((invoice) => (
@@ -103,7 +105,7 @@ export default async function SuperintendentQueuePage() {
                   <p className="text-sm text-gray-900">
                     {formatCents(invoice.amountCents)}
                   </p>
-                  <StatusBadge status={invoice.status} />
+                  <StatusBadge status={invoice.status} workCompleted={invoice.workCompleted} />
                 </div>
               </div>
             ))}
@@ -114,17 +116,21 @@ export default async function SuperintendentQueuePage() {
   );
 }
 
-function StatusBadge({ status }: { status: string }) {
-  const styles: Record<string, string> = {
-    approved: "text-green-700",
-    rejected: "text-red-700",
-    paid: "text-blue-700",
-    flagged: "text-amber-700",
-    pending: "text-gray-500",
-  };
-  return (
-    <span className={`text-xs font-medium capitalize ${styles[status] ?? "text-gray-500"}`}>
-      {status}
-    </span>
-  );
+function StatusBadge({
+  status,
+  workCompleted,
+}: {
+  status: string;
+  workCompleted: boolean;
+}) {
+  if (status === "paid") {
+    return <span className="text-xs font-medium text-blue-700">Paid</span>;
+  }
+  if (status === "on_hold") {
+    return <span className="text-xs font-medium text-amber-700">On Hold</span>;
+  }
+  if (workCompleted) {
+    return <span className="text-xs font-medium text-green-700">Completed</span>;
+  }
+  return <span className="text-xs font-medium text-gray-500">Unpaid</span>;
 }

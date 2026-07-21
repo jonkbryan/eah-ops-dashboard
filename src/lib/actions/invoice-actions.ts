@@ -13,8 +13,6 @@ async function requireUser() {
   return session.user;
 }
 
-type Decision = "approved" | "rejected" | "flagged";
-
 export async function createInvoice(input: {
   jobId: string;
   costCodeId: string;
@@ -124,11 +122,16 @@ export async function updateInvoice(input: {
   revalidatePath("/superintendent");
 }
 
-export async function decideInvoice(input: {
+// Confirms the actual work is done — required before an invoice can be
+// marked paid, independent of on-hold status. Superintendents can do this
+// for their own jobs; admins for any. Requires a signature (same on-screen
+// pad the old approval step used). completedDate is optional — the person
+// signing off might not remember/know the exact date — but
+// workCompletedAt (the sign-off timestamp itself) is always recorded.
+export async function markWorkCompleted(input: {
   invoiceId: string;
-  decision: Decision;
-  note?: string;
-  signature?: string; // base64 PNG data URL; required when decision is "approved"
+  signature: string;
+  completedDate?: string; // yyyy-mm-dd, optional
 }) {
   const user = await requireUser();
 
@@ -142,31 +145,26 @@ export async function decideInvoice(input: {
 
   const isAssignedSuperintendent =
     user.isSuperintendent && invoice.job.superintendentId === user.id;
-
-  // A superintendent may only decide invoices on their own assigned job.
-  // Admins can decide/override any invoice at any stage.
   if (!isAssignedSuperintendent && !user.isAdmin) {
-    throw new Error("You are not authorized to decide this invoice");
+    throw new Error("You are not authorized to sign off on this invoice");
   }
-
-  if (invoice.status === "paid" && !user.isAdmin) {
-    throw new Error("Only admins can change a paid invoice");
+  if (invoice.status === "paid") {
+    throw new Error("This invoice has already been paid");
   }
-
-  if (input.decision === "approved" && !input.signature) {
-    throw new Error("A signature is required to approve an invoice");
+  if (!input.signature) {
+    throw new Error("A signature is required to confirm the work is completed");
   }
 
   await db.invoice.update({
     where: { id: invoice.id },
     data: {
-      status: input.decision,
-      decisionNote: input.note?.trim() || null,
-      decidedById: user.id,
-      decidedAt: new Date(),
-      ...(input.decision === "approved"
-        ? { approvalSignature: input.signature }
-        : {}),
+      workCompleted: true,
+      workCompletedSignature: input.signature,
+      workCompletedById: user.id,
+      workCompletedAt: new Date(),
+      workCompletedDate: input.completedDate
+        ? new Date(`${input.completedDate}T00:00:00`)
+        : null,
     },
   });
 
@@ -174,34 +172,78 @@ export async function decideInvoice(input: {
   revalidatePath("/admin");
 }
 
-// Admin-only: undoes a signed approval, sending the invoice back to Pending
-// for a fresh decision. Superintendents never see this — it only appears in
-// the admin-only "Ready to Pay" section. Not exposed via decideInvoice since
-// that lets a superintendent re-decide their own job's invoices, and
-// un-approving isn't a decision they should be able to make on themselves.
-export async function revertApproval(invoiceId: string) {
+// Admin-only: undoes a signed work-completion sign-off (e.g. marked by
+// mistake). Mirrors the old "Undo approval" — deliberately not exposed to
+// superintendents on their own invoices, same reasoning as before.
+export async function undoWorkCompleted(invoiceId: string) {
   const user = await requireUser();
   if (!user.isAdmin) {
-    throw new Error("Only admins can undo an approval");
+    throw new Error("Only admins can undo a work-completion sign-off");
   }
 
   const invoice = await db.invoice.findUnique({ where: { id: invoiceId } });
   if (!invoice) {
     throw new Error("Invoice not found");
   }
-  if (invoice.status !== "approved") {
-    throw new Error("Only approved invoices can be un-approved");
+  if (invoice.status === "paid") {
+    throw new Error("This invoice has already been paid");
+  }
+  if (!invoice.workCompleted) {
+    throw new Error("This invoice isn't marked as work-completed");
   }
 
   await db.invoice.update({
     where: { id: invoice.id },
     data: {
-      status: "pending",
-      decidedById: null,
-      decidedAt: null,
-      approvalSignature: null,
-      decisionNote: null,
+      workCompleted: false,
+      workCompletedSignature: null,
+      workCompletedById: null,
+      workCompletedAt: null,
+      workCompletedDate: null,
       scheduledPaymentDate: null,
+    },
+  });
+
+  revalidatePath("/admin");
+  revalidatePath("/superintendent");
+}
+
+// Toggles an invoice on/off hold — a hold means something about the
+// invoice itself needs attention (wrong vendor/amount/etc, correct it via
+// the edit page, or just a general "don't pay this yet"). Independent of
+// workCompleted — an invoice can be work-completed and on hold at once.
+// Same authorization as marking work completed.
+export async function setOnHold(input: {
+  invoiceId: string;
+  onHold: boolean;
+  note?: string;
+}) {
+  const user = await requireUser();
+
+  const invoice = await db.invoice.findUnique({
+    where: { id: input.invoiceId },
+    include: { job: true },
+  });
+  if (!invoice) {
+    throw new Error("Invoice not found");
+  }
+
+  const isAssignedSuperintendent =
+    user.isSuperintendent && invoice.job.superintendentId === user.id;
+  if (!isAssignedSuperintendent && !user.isAdmin) {
+    throw new Error("You are not authorized to change this invoice's hold status");
+  }
+  if (invoice.status === "paid") {
+    throw new Error("This invoice has already been paid");
+  }
+
+  await db.invoice.update({
+    where: { id: invoice.id },
+    data: {
+      status: input.onHold ? "on_hold" : "unpaid",
+      decisionNote: input.note?.trim() || null,
+      decidedById: user.id,
+      decidedAt: new Date(),
     },
   });
 
@@ -226,8 +268,10 @@ export async function markInvoicePaid(input: {
   if (!invoice) {
     throw new Error("Invoice not found");
   }
-  if (invoice.status !== "approved") {
-    throw new Error("Only approved invoices can be marked paid");
+  if (invoice.status !== "unpaid" || !invoice.workCompleted) {
+    throw new Error(
+      "This invoice must be marked work-completed and off hold before it can be paid"
+    );
   }
   if (input.amountCents <= 0) {
     throw new Error("Payment amount must be greater than zero");
@@ -253,8 +297,8 @@ export async function markInvoicePaid(input: {
   revalidatePath("/admin");
 }
 
-// Marks/updates which Friday payment batch an approved invoice is slated
-// for — scheduling metadata only, doesn't change status or record a
+// Marks/updates which Friday payment batch a work-completed invoice is
+// slated for — scheduling metadata only, doesn't change status or record a
 // payment. Pass null to clear it.
 export async function setScheduledPaymentDate(input: {
   invoiceId: string;
@@ -270,8 +314,8 @@ export async function setScheduledPaymentDate(input: {
   if (!invoice) {
     throw new Error("Invoice not found");
   }
-  if (invoice.status !== "approved") {
-    throw new Error("Only approved invoices can be scheduled for payment");
+  if (invoice.status !== "unpaid" || !invoice.workCompleted) {
+    throw new Error("Only work-completed, unpaid invoices can be scheduled for payment");
   }
 
   await db.invoice.update({
@@ -286,10 +330,10 @@ export async function setScheduledPaymentDate(input: {
   revalidatePath("/admin");
 }
 
-// Marks a whole batch of approved invoices paid in one go (e.g. the weekly
-// Thursday payment run) — each gets a Payment for its full amount, sharing
-// one method/date. For a payment that isn't the full invoice amount, use
-// markInvoicePaid on that invoice individually instead.
+// Marks a whole batch of ready-to-pay invoices paid in one go (e.g. the
+// weekly Thursday payment run) — each gets a Payment for its full amount,
+// sharing one method/date. For a payment that isn't the full invoice
+// amount, use markInvoicePaid on that invoice individually instead.
 export async function markInvoicesPaidBatch(input: {
   invoiceIds: string[];
   method: string;
@@ -310,10 +354,12 @@ export async function markInvoicesPaidBatch(input: {
   if (invoices.length !== input.invoiceIds.length) {
     throw new Error("One or more selected invoices could not be found");
   }
-  const notApproved = invoices.filter((invoice) => invoice.status !== "approved");
-  if (notApproved.length > 0) {
+  const notReady = invoices.filter(
+    (invoice) => invoice.status !== "unpaid" || !invoice.workCompleted
+  );
+  if (notReady.length > 0) {
     throw new Error(
-      `${notApproved.length} selected invoice(s) are no longer approved — refresh and try again`
+      `${notReady.length} selected invoice(s) are no longer ready to pay — refresh and try again`
     );
   }
 
