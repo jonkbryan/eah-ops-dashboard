@@ -174,6 +174,41 @@ export async function decideInvoice(input: {
   revalidatePath("/admin");
 }
 
+// Admin-only: undoes a signed approval, sending the invoice back to Pending
+// for a fresh decision. Superintendents never see this — it only appears in
+// the admin-only "Ready to Pay" section. Not exposed via decideInvoice since
+// that lets a superintendent re-decide their own job's invoices, and
+// un-approving isn't a decision they should be able to make on themselves.
+export async function revertApproval(invoiceId: string) {
+  const user = await requireUser();
+  if (!user.isAdmin) {
+    throw new Error("Only admins can undo an approval");
+  }
+
+  const invoice = await db.invoice.findUnique({ where: { id: invoiceId } });
+  if (!invoice) {
+    throw new Error("Invoice not found");
+  }
+  if (invoice.status !== "approved") {
+    throw new Error("Only approved invoices can be un-approved");
+  }
+
+  await db.invoice.update({
+    where: { id: invoice.id },
+    data: {
+      status: "pending",
+      decidedById: null,
+      decidedAt: null,
+      approvalSignature: null,
+      decisionNote: null,
+      scheduledPaymentDate: null,
+    },
+  });
+
+  revalidatePath("/admin");
+  revalidatePath("/superintendent");
+}
+
 export async function markInvoicePaid(input: {
   invoiceId: string;
   amountCents: number;

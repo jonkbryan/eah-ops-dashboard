@@ -1,7 +1,11 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { markInvoicesPaidBatch, setScheduledPaymentDate } from "@/lib/actions/invoice-actions";
+import {
+  markInvoicesPaidBatch,
+  revertApproval,
+  setScheduledPaymentDate,
+} from "@/lib/actions/invoice-actions";
 import { formatCents, PAYMENT_METHODS, todayIso } from "@/lib/domain";
 import { MarkPaidForm } from "@/components/admin/mark-paid-form";
 
@@ -87,6 +91,59 @@ function ScheduleDropdown({
           </option>
         ))}
       </select>
+    </div>
+  );
+}
+
+// Admin-only reversal of a signed approval, back to Pending. Requires a
+// second click to confirm since it discards a captured signature — not
+// something to fire off a single misclick.
+function UndoApprovalButton({ invoiceId }: { invoiceId: string }) {
+  const [armed, setArmed] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
+
+  function submit() {
+    setError(null);
+    startTransition(async () => {
+      try {
+        await revertApproval(invoiceId);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Something went wrong");
+        setArmed(false);
+      }
+    });
+  }
+
+  return (
+    <div className="flex items-center gap-2">
+      {armed ? (
+        <>
+          <span className="text-xs text-gray-500">Send back to Pending?</span>
+          <button
+            onClick={submit}
+            disabled={pending}
+            className="text-xs font-medium text-red-700 hover:text-red-900 disabled:opacity-50"
+          >
+            {pending ? "Undoing..." : "Confirm"}
+          </button>
+          <button
+            onClick={() => setArmed(false)}
+            disabled={pending}
+            className="text-xs text-gray-500 hover:text-gray-700"
+          >
+            Cancel
+          </button>
+        </>
+      ) : (
+        <button
+          onClick={() => setArmed(true)}
+          className="text-xs text-gray-400 hover:text-red-700 underline"
+        >
+          Undo approval
+        </button>
+      )}
+      {error && <p className="text-xs text-red-700">{error}</p>}
     </div>
   );
 }
@@ -265,6 +322,9 @@ export function PaymentBatchSection({ invoices }: { invoices: ReadyInvoice[] }) 
                 scheduledPaymentDate={invoice.scheduledPaymentDate}
               />
               <MarkPaidForm invoiceId={invoice.id} amountCents={invoice.amountCents} />
+              <div className="flex justify-end">
+                <UndoApprovalButton invoiceId={invoice.id} />
+              </div>
             </div>
           </div>
         </div>
