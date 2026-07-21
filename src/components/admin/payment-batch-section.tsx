@@ -7,6 +7,7 @@ import {
   setScheduledPaymentDate,
 } from "@/lib/actions/invoice-actions";
 import { formatCents, PAYMENT_METHODS, todayIso } from "@/lib/domain";
+import { getUpcomingFridays, formatFriday } from "@/lib/payment-schedule";
 import { MarkPaidForm } from "@/components/admin/mark-paid-form";
 
 type ReadyInvoice = {
@@ -20,32 +21,6 @@ type ReadyInvoice = {
   approvalSignature: string | null;
   scheduledPaymentDate: Date | null;
 };
-
-// EAH pays every Thursday; funds process/land Friday morning, so "which
-// Friday" is how the team actually talks about a payment batch. This is
-// specific to EAH's cadence, not a generic reusable concept.
-function getUpcomingFridays(count: number): string[] {
-  const dates: string[] = [];
-  const cursor = new Date();
-  cursor.setHours(0, 0, 0, 0);
-  while (cursor.getDay() !== 5) {
-    cursor.setDate(cursor.getDate() + 1);
-  }
-  for (let i = 0; i < count; i++) {
-    dates.push(cursor.toISOString().slice(0, 10));
-    cursor.setDate(cursor.getDate() + 7);
-  }
-  return dates;
-}
-
-function formatFriday(iso: string): string {
-  const [y, m, d] = iso.split("-").map(Number);
-  return new Date(y, m - 1, d).toLocaleDateString("en-US", {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-  });
-}
 
 function ScheduleDropdown({
   invoiceId,

@@ -3,8 +3,10 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { formatCents } from "@/lib/domain";
+import { getUpcomingFridays, dueFridayIso } from "@/lib/payment-schedule";
 import { InvoiceDecisionCard } from "@/components/invoice-decision-card";
 import { PaymentBatchSection } from "@/components/admin/payment-batch-section";
+import { PaymentHubSummary, type PaymentBucket } from "@/components/admin/payment-hub-summary";
 import { AdminTabs } from "@/components/admin/admin-tabs";
 
 const SORT_OPTIONS = {
@@ -27,7 +29,7 @@ export default async function AdminPage({
   const { job: jobFilter, sort } = await searchParams;
   const sortKey: SortKey = sort && sort in SORT_OPTIONS ? (sort as SortKey) : "oldest";
 
-  const [readyToPay, needsDecision, history, jobs] = await Promise.all([
+  const [readyToPay, needsDecision, history, jobs, unpaidForHub] = await Promise.all([
     db.invoice.findMany({
       where: { status: "approved" },
       include: { job: true, costCode: true, vendor: true },
@@ -48,7 +50,29 @@ export default async function AdminPage({
       take: 20,
     }),
     db.job.findMany({ orderBy: { name: "asc" } }),
+    db.invoice.findMany({
+      where: { status: { not: "paid" } },
+      select: { amountCents: true, status: true, scheduledPaymentDate: true, createdAt: true },
+    }),
   ]);
+
+  const upcomingFridays = getUpcomingFridays(4);
+  const bucketMap = new Map<string, PaymentBucket>(
+    ["overdue", ...upcomingFridays].map((key) => [
+      key,
+      { key, totalCents: 0, count: 0, approvedCount: 0 },
+    ])
+  );
+  for (const invoice of unpaidForHub) {
+    const due = dueFridayIso(invoice);
+    const key = due < upcomingFridays[0] ? "overdue" : due;
+    const bucket = bucketMap.get(key);
+    if (!bucket) continue; // scheduled further out than the 4-week window
+    bucket.totalCents += invoice.amountCents;
+    bucket.count += 1;
+    if (invoice.status === "approved") bucket.approvedCount += 1;
+  }
+  const paymentBuckets = [...bucketMap.values()];
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-6 space-y-8">
@@ -67,6 +91,8 @@ export default async function AdminPage({
         </div>
         <AdminTabs active="overview" />
       </div>
+
+      <PaymentHubSummary buckets={paymentBuckets} />
 
       <section className="space-y-3">
         <h2 className="text-sm font-medium text-gray-500 uppercase tracking-wide">
