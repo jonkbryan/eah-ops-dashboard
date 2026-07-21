@@ -62,6 +62,68 @@ export async function createInvoice(input: {
   return invoice.id;
 }
 
+// Lets an admin correct fields on an invoice after the fact — mainly for
+// invoices ingested via /api/invoices/ingest, where Make.com doesn't
+// compute a cost code and vendor/job name matching can occasionally be
+// wrong. Blocked once an invoice is paid, matching the existing "no
+// reopening a paid invoice" rule elsewhere in the app.
+export async function updateInvoice(input: {
+  invoiceId: string;
+  jobId: string;
+  costCodeId: string;
+  vendorId: string;
+  amountCents: number;
+  note?: string;
+  attachmentUrl?: string;
+}) {
+  const user = await requireUser();
+  if (!user.isAdmin) {
+    throw new Error("Only admins can edit invoices");
+  }
+  if (!Number.isFinite(input.amountCents) || input.amountCents <= 0) {
+    throw new Error("Amount must be greater than zero");
+  }
+
+  const invoice = await db.invoice.findUnique({ where: { id: input.invoiceId } });
+  if (!invoice) {
+    throw new Error("Invoice not found");
+  }
+  if (invoice.status === "paid") {
+    throw new Error("Paid invoices can't be edited");
+  }
+
+  const [job, costCode, vendor] = await Promise.all([
+    db.job.findUnique({ where: { id: input.jobId } }),
+    db.costCode.findUnique({ where: { id: input.costCodeId } }),
+    db.vendor.findUnique({ where: { id: input.vendorId } }),
+  ]);
+  if (!job) {
+    throw new Error("Job not found");
+  }
+  if (!costCode) {
+    throw new Error("Cost code not found");
+  }
+  if (!vendor) {
+    throw new Error("Vendor not found");
+  }
+
+  await db.invoice.update({
+    where: { id: invoice.id },
+    data: {
+      jobId: input.jobId,
+      costCodeId: input.costCodeId,
+      vendorId: input.vendorId,
+      amountCents: input.amountCents,
+      note: input.note?.trim() || null,
+      attachmentUrl: input.attachmentUrl?.trim() || null,
+    },
+  });
+
+  revalidatePath("/admin");
+  revalidatePath("/admin/invoices");
+  revalidatePath("/superintendent");
+}
+
 export async function decideInvoice(input: {
   invoiceId: string;
   decision: Decision;

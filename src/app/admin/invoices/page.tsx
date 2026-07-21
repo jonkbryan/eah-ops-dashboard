@@ -118,6 +118,14 @@ export default async function AllInvoicesPage({
                     View
                   </a>
                 )}
+                {invoice.status !== "paid" && (
+                  <Link
+                    href={`/admin/invoices/${invoice.id}/edit`}
+                    className="text-xs text-gray-600 hover:text-gray-900 underline"
+                  >
+                    Edit
+                  </Link>
+                )}
                 <div className="text-right">
                   <p className="text-sm text-gray-900">
                     {formatCents(invoice.amountCents)}
