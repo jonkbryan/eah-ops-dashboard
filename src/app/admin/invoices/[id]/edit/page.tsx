@@ -3,6 +3,7 @@ import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { InvoiceEditForm } from "@/components/admin/invoice-edit-form";
 import { InvoiceStatusActions } from "@/components/admin/invoice-status-actions";
+import { UndoPaymentSection } from "@/components/admin/undo-payment-section";
 
 export default async function EditInvoicePage({
   params,
@@ -16,7 +17,10 @@ export default async function EditInvoicePage({
   const { id } = await params;
 
   const [invoice, jobs, costCodes, vendors] = await Promise.all([
-    db.invoice.findUnique({ where: { id } }),
+    db.invoice.findUnique({
+      where: { id },
+      include: { payments: { orderBy: { createdAt: "desc" }, take: 1 } },
+    }),
     db.job.findMany({ orderBy: { name: "asc" } }),
     db.costCode.findMany({ orderBy: { code: "asc" } }),
     db.vendor.findMany({ orderBy: { name: "asc" } }),
@@ -26,6 +30,8 @@ export default async function EditInvoicePage({
     notFound();
   }
 
+  const payment = invoice.payments[0] ?? null;
+
   return (
     <main className="mx-auto max-w-3xl px-4 py-6 space-y-6">
       <div>
@@ -33,9 +39,20 @@ export default async function EditInvoicePage({
       </div>
 
       {invoice.status === "paid" ? (
-        <p className="text-sm text-gray-500 bg-white rounded-2xl border border-gray-200 p-6 text-center">
-          Paid invoices can&apos;t be edited.
-        </p>
+        payment ? (
+          <UndoPaymentSection
+            invoiceId={invoice.id}
+            amountCents={payment.amountCents}
+            method={payment.method}
+            paidOn={payment.paidAt.toISOString().slice(0, 10)}
+            reference={payment.reference}
+            reconciled={payment.quickbooksTransactionId !== null}
+          />
+        ) : (
+          <p className="text-sm text-gray-500 bg-white rounded-2xl border border-gray-200 p-6 text-center">
+            Paid invoices can&apos;t be edited.
+          </p>
+        )
       ) : (
         <>
           <InvoiceStatusActions

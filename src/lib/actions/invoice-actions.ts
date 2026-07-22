@@ -297,6 +297,42 @@ export async function markInvoicePaid(input: {
   revalidatePath("/admin");
 }
 
+// Reverses an accidental "mark paid" — deletes the Payment record and
+// reverts the invoice back to unpaid (workCompleted is untouched, since
+// that's a separate fact that's still true). Blocked once the payment has
+// been reconciled against QuickBooks, since that reflects a real external
+// confirmation this action shouldn't silently erase.
+export async function undoMarkPaid(invoiceId: string) {
+  const user = await requireUser();
+  if (!user.isAdmin) {
+    throw new Error("Only admins can undo a payment");
+  }
+
+  const invoice = await db.invoice.findUnique({
+    where: { id: invoiceId },
+    include: { payments: true },
+  });
+  if (!invoice) {
+    throw new Error("Invoice not found");
+  }
+  if (invoice.status !== "paid") {
+    throw new Error("This invoice isn't marked as paid");
+  }
+  if (invoice.payments.some((p) => p.quickbooksTransactionId)) {
+    throw new Error(
+      "This payment has already been reconciled against QuickBooks and can't be undone here"
+    );
+  }
+
+  await db.$transaction([
+    db.payment.deleteMany({ where: { invoiceId: invoice.id } }),
+    db.invoice.update({ where: { id: invoice.id }, data: { status: "unpaid" } }),
+  ]);
+
+  revalidatePath("/admin");
+  revalidatePath(`/admin/invoices/${invoice.id}/edit`);
+}
+
 // Marks/updates which Friday payment batch a work-completed invoice is
 // slated for — scheduling metadata only, doesn't change status or record a
 // payment. Pass null to clear it.
